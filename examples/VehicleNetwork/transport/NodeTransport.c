@@ -2,7 +2,8 @@
  * NodeTransport.c – UDP Transport Binding for Vehicle Network Nodes
  * AUTOSAR Release R22-11 (Host Simulation Layer)
  *
- * Implements the SoAd / EthIf abstraction on POSIX UDP sockets:
+ * Implements the SoAd / EthIf abstraction on UDP sockets.
+ * Portable across Linux/QNX (POSIX) and Windows (Winsock2) via Platform.h.
  *
  *  Send path:
  *    SomeIpSd_Transmit(frame, len)
@@ -20,9 +21,14 @@
  * Thread safety: all module-static state is written once during Init and
  * then read-only from both the main thread and the receive thread.
  * The `volatile` running flag is the only shared mutable state.
+ *
+ * Platform support:
+ *   Linux / QNX  – POSIX sockets + pthreads
+ *   Windows 10+  – Winsock2 + CreateThread (Win32)
  */
 
 #include "NodeTransport.h"
+#include "Platform.h"       /* must precede all AUTOSAR headers on Windows  */
 #include "Compiler.h"
 #include "SomeIp.h"
 #include "SomeIp_SD.h"
@@ -33,24 +39,14 @@
  * exists for BSW integration points; prototype provided here for -Wmissing-prototypes. */
 Std_ReturnType SomeIpSd_Transmit(const uint8 *BufPtr, uint32 Length);
 
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-
 /* =========================================================================
  * Module-static state (one instance per process)
  * ====================================================================== */
-static int                Transport_Sock      = -1;
+static Platform_Socket_t  Transport_Sock      = PLATFORM_INVALID_SOCKET;
 static struct sockaddr_in Transport_Peers[NODE_TRANSPORT_MAX_PEERS];
 static uint8              Transport_PeerCount = 0u;
 static volatile int       Transport_Running   = 0;
-static pthread_t          Transport_Thread;
+static Platform_Thread_t  Transport_Thread;
 static NodeSdCallbacks    Transport_Cbs;
 
 /* =========================================================================
@@ -191,21 +187,19 @@ static void OnRawFrameReceived(const uint8 *data, uint32 length)
 }
 
 /* =========================================================================
- * Receive thread
+ * Receive loop (common logic – called from platform thread entry below)
  * Uses select() with a 100 ms timeout so it can check Transport_Running.
  * ====================================================================== */
 
-static void *ReceiveThread(void *arg)
+static void DoReceiveLoop(void)
 {
-    uint8              rxBuf[NODE_TRANSPORT_MTU];
-    struct sockaddr_in sender;
-    socklen_t          senderLen;
-    ssize_t            rxBytes;
-    fd_set             readFds;
-    struct timeval     timeout;
-    int                selResult;
-
-    (void)arg;
+    uint8                rxBuf[NODE_TRANSPORT_MTU];
+    struct sockaddr_in   sender;
+    Platform_SockLen_t   senderLen;
+    int                  rxBytes;
+    fd_set               readFds;
+    struct timeval       timeout;
+    int                  selResult;
 
     while (Transport_Running != 0)
     {
@@ -214,25 +208,71 @@ static void *ReceiveThread(void *arg)
         timeout.tv_sec  = 0;
         timeout.tv_usec = 100000;  /* 100 ms */
 
-        selResult = select(Transport_Sock + 1, &readFds, NULL, NULL, &timeout);
+        selResult = select(PLATFORM_SELECT_NFDS(Transport_Sock),
+                           &readFds, NULL, NULL, &timeout);
         if (selResult <= 0)
         {
             continue;  /* timeout or signal – re-check running flag */
         }
 
-        senderLen = (socklen_t)sizeof(sender);
-        rxBytes   = recvfrom(Transport_Sock,
-                             rxBuf, sizeof(rxBuf),
-                             0,
-                             (struct sockaddr *)&sender, &senderLen);
+        senderLen = (Platform_SockLen_t)sizeof(sender);
+        rxBytes   = (int)recvfrom(Transport_Sock,
+                                   PLATFORM_RBUF(rxBuf), (int)sizeof(rxBuf),
+                                   0,
+                                   (struct sockaddr *)&sender, &senderLen);
         if (rxBytes > 0)
         {
             OnRawFrameReceived(rxBuf, (uint32)rxBytes);
         }
     }
+}
 
+/* =========================================================================
+ * Platform thread entry points
+ * Windows requires DWORD WINAPI; POSIX requires void*.
+ * Both delegate to DoReceiveLoop().
+ * ====================================================================== */
+
+#ifdef _WIN32
+static DWORD WINAPI ReceiveThread(LPVOID arg)
+{
+    (void)arg;
+    DoReceiveLoop();
+    return 0u;
+}
+
+static int Plat_ThreadCreate(Platform_Thread_t *t)
+{
+    *t = CreateThread(NULL, 0u, ReceiveThread, NULL, 0u, NULL);
+    return (*t != NULL) ? 0 : -1;
+}
+
+static void Plat_ThreadJoin(Platform_Thread_t t)
+{
+    WaitForSingleObject(t, INFINITE);
+    CloseHandle(t);
+}
+
+#else  /* POSIX */
+
+static void *ReceiveThread(void *arg)
+{
+    (void)arg;
+    DoReceiveLoop();
     return NULL;
 }
+
+static int Plat_ThreadCreate(Platform_Thread_t *t)
+{
+    return pthread_create(t, NULL, ReceiveThread, NULL);
+}
+
+static void Plat_ThreadJoin(Platform_Thread_t t)
+{
+    pthread_join(t, NULL);
+}
+
+#endif  /* _WIN32 */
 
 /* =========================================================================
  * Public API
@@ -247,15 +287,22 @@ Std_ReturnType NodeTransport_Init(uint16        localPort,
     uint8              i;
     uint8              count;
 
+    /* Winsock2: must call WSAStartup before any socket operation (no-op on POSIX) */
+    if (Platform_NetworkInit() != 0)
+    {
+        (void)fprintf(stderr, "[Transport] WSAStartup failed\n");
+        return E_NOT_OK;
+    }
+
     Transport_Sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (Transport_Sock < 0)
+    if (!PLATFORM_SOCKET_IS_VALID(Transport_Sock))
     {
         perror("[Transport] socket()");
         return E_NOT_OK;
     }
 
     (void)setsockopt(Transport_Sock, SOL_SOCKET, SO_REUSEADDR,
-                     &reuseOpt, sizeof(reuseOpt));
+                     (const char *)&reuseOpt, (int)sizeof(reuseOpt));
 
     (void)memset(&localAddr, 0, sizeof(localAddr));
     localAddr.sin_family      = AF_INET;
@@ -264,11 +311,11 @@ Std_ReturnType NodeTransport_Init(uint16        localPort,
 
     if (bind(Transport_Sock,
              (const struct sockaddr *)&localAddr,
-             sizeof(localAddr)) < 0)
+             sizeof(localAddr)) != 0)
     {
         perror("[Transport] bind()");
-        (void)close(Transport_Sock);
-        Transport_Sock = -1;
+        (void)PLATFORM_CLOSE_SOCKET(Transport_Sock);
+        Transport_Sock = PLATFORM_INVALID_SOCKET;
         return E_NOT_OK;
     }
 
@@ -304,9 +351,9 @@ void NodeTransport_RegisterSdCallbacks(const NodeSdCallbacks *callbacks)
 Std_ReturnType NodeTransport_StartReceive(void)
 {
     Transport_Running = 1;
-    if (pthread_create(&Transport_Thread, NULL, ReceiveThread, NULL) != 0)
+    if (Plat_ThreadCreate(&Transport_Thread) != 0)
     {
-        perror("[Transport] pthread_create()");
+        perror("[Transport] thread create failed");
         Transport_Running = 0;
         return E_NOT_OK;
     }
@@ -316,13 +363,15 @@ Std_ReturnType NodeTransport_StartReceive(void)
 void NodeTransport_Deinit(void)
 {
     Transport_Running = 0;
-    (void)pthread_join(Transport_Thread, NULL);
+    Plat_ThreadJoin(Transport_Thread);
 
-    if (Transport_Sock >= 0)
+    if (PLATFORM_SOCKET_IS_VALID(Transport_Sock))
     {
-        (void)close(Transport_Sock);
-        Transport_Sock = -1;
+        (void)PLATFORM_CLOSE_SOCKET(Transport_Sock);
+        Transport_Sock = PLATFORM_INVALID_SOCKET;
     }
+
+    Platform_NetworkDeinit();  /* WSACleanup on Windows, no-op on POSIX */
 }
 
 /* =========================================================================
@@ -335,21 +384,21 @@ void NodeTransport_Deinit(void)
 
 Std_ReturnType SomeIpSd_Transmit(const uint8 *BufPtr, uint32 Length)
 {
-    uint8   i;
-    ssize_t sent;
+    uint8 i;
+    int   sent;
 
-    if ((Transport_Sock < 0) || (BufPtr == NULL))
+    if (!PLATFORM_SOCKET_IS_VALID(Transport_Sock) || (BufPtr == NULL))
     {
         return E_NOT_OK;
     }
 
     for (i = 0u; i < Transport_PeerCount; i++)
     {
-        sent = sendto(Transport_Sock,
-                      BufPtr, (size_t)Length,
-                      0,
-                      (const struct sockaddr *)&Transport_Peers[i],
-                      sizeof(Transport_Peers[i]));
+        sent = (int)sendto(Transport_Sock,
+                           PLATFORM_SBUF(BufPtr), (int)Length,
+                           0,
+                           (const struct sockaddr *)&Transport_Peers[i],
+                           (int)sizeof(Transport_Peers[i]));
         if (sent < 0)
         {
             /* Log but continue – other peers may still be reachable */

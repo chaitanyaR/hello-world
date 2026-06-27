@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#include "Platform.h"
 
 /* =========================================================================
  * Simple service routing table (up to 16 entries)
@@ -191,7 +191,7 @@ int main(void)
     }
 
     /* --- Allow other nodes to start (500 ms) ----------------------------- */
-    usleep(500000u);
+    Platform_SleepMs(500u);
 
     /* --- Phase 1: Offer gateway service ---------------------------------- */
     printf("\n[GW] Phase 1: Offering GatewayRouting service...\n");
@@ -202,7 +202,7 @@ int main(void)
     printf("[GW] -> OfferService: GatewayRouting (0x%04X)\n", SOMEIP_SVC_GW_ROUTING);
 
     /* --- Phase 2: Find all known services (populate routing table) ------- */
-    usleep(300000u);
+    Platform_SleepMs(300u);
     printf("\n[GW] Phase 2: Finding all vehicle services...\n");
 
     (void)SomeIpSd_FindService(SOMEIP_SVC_DOOR_LOCK,   SOMEIP_INSTANCE_ID_ANY,
@@ -219,11 +219,11 @@ int main(void)
 
     /* --- Run and monitor SD traffic ------------------------------------- */
     printf("\n[GW] Monitoring SD traffic (5 s)...\n");
-    sleep(5u);
+    Platform_SleepMs(5000u);
 
     /* Print routing table snapshot */
     Gw_PrintRouteTable();
-    sleep(2u);
+    Platform_SleepMs(2000u);
 
     /* --- Shutdown -------------------------------------------------------- */
     printf("\n[GW] Phase 4: StopOffer GatewayRouting...\n");
@@ -232,7 +232,7 @@ int main(void)
                                      SOMEIP_SVC_GW_ROUTING_MAJOR, SOMEIP_SVC_GW_ROUTING_MINOR);
     printf("[GW] -> StopOfferService: GatewayRouting\n");
 
-    usleep(200000u);
+    Platform_SleepMs(200u);
     NodeTransport_Deinit();
 
     printf("\n[GW] Shutdown complete.\n");

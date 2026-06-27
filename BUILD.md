@@ -1,8 +1,8 @@
 # Build Guide
 
-**Project:** SOME/IP AUTOSAR Middleware + BulkDataTransfer Example Application  
+**Project:** SOME/IP AUTOSAR Middleware + VehicleNetwork + BulkDataTransfer  
 **AUTOSAR Release:** R22-11  
-**Toolchain:** GCC (host) / arm-none-eabi-gcc (target)
+**Toolchain:** GCC (host Linux/macOS) · MinGW-w64 / MSYS2 (host Windows) · arm-none-eabi-gcc (embedded)
 
 ---
 
@@ -10,28 +10,63 @@
 
 1. [Prerequisites](#1-prerequisites)
 2. [Repository Layout](#2-repository-layout)
-3. [Quick Start (Host Build)](#3-quick-start-host-build)
-4. [Detailed Build Steps](#4-detailed-build-steps)
-5. [Build Targets](#5-build-targets)
-6. [Running the Test Suite (SWE.5 / SWE.6)](#6-running-the-test-suite-swe5--swe6)
-7. [Code Coverage](#7-code-coverage)
-8. [Cross-Compilation for Embedded (arm-none-eabi)](#8-cross-compilation-for-embedded-arm-none-eabi)
-9. [Static Analysis](#9-static-analysis)
-10. [Dependency Graph](#10-dependency-graph)
-11. [Troubleshooting](#11-troubleshooting)
+3. [Quick Start (Host Build – Linux)](#3-quick-start-host-build)
+4. [Windows Build – Virtual Ethernet Demo](#4-windows-build--virtual-ethernet-demo)
+5. [Detailed Build Steps](#5-detailed-build-steps)
+6. [Build Targets](#6-build-targets)
+7. [Running the Test Suite (SWE.5 / SWE.6)](#7-running-the-test-suite-swe5--swe6)
+8. [Code Coverage](#8-code-coverage)
+9. [Cross-Compilation for Embedded (arm-none-eabi)](#9-cross-compilation-for-embedded-arm-none-eabi)
+10. [Aurix TC34xx MCAL Layer](#10-aurix-tc34xx-mcal-layer)
+11. [Static Analysis](#11-static-analysis)
+12. [Dependency Graph](#12-dependency-graph)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
 ## 1. Prerequisites
 
-### Mandatory
+### Mandatory (all platforms)
 
 | Tool | Minimum Version | Purpose |
 |------|----------------|---------|
 | `cmake` | 3.16 | Build system |
-| `gcc` / `g++` | 11.0 | Host compilation (C99 + C++17) |
 | `make` or `ninja` | any | Build backend |
 | `git` | 2.30 | Source control |
+
+### Linux / macOS
+
+| Tool | Minimum Version | Purpose |
+|------|----------------|---------|
+| `gcc` / `g++` | 11.0 | Host compilation (C99 + C++17) |
+
+```bash
+sudo apt-get install cmake gcc g++ make git   # Debian/Ubuntu
+brew install cmake gcc make git               # macOS
+```
+
+### Windows (MSYS2 / MinGW-w64) — recommended
+
+MinGW-w64 is the recommended Windows toolchain.  It provides GCC + Winsock2
+with no additional license requirements.
+
+1. **Install MSYS2**: download from <https://www.msys2.org/> and run the installer.
+2. Open the **MSYS2 MINGW64** terminal and install the toolchain:
+
+```bash
+pacman -S --needed \
+    mingw-w64-x86_64-toolchain \
+    mingw-w64-x86_64-cmake \
+    mingw-w64-x86_64-ninja \
+    git
+```
+
+3. Add `C:\msys64\mingw64\bin` to your Windows `PATH`.
+
+> **Alternative – Visual Studio / MSVC**  
+> Install [CMake for Windows](https://cmake.org/download/) and Visual Studio 2022
+> with the "Desktop development with C++" workload.  Pass `-G "Visual Studio 17 2022"`
+> to cmake.  MSVC 19.30+ is required for C99 `_Bool` / `<stdbool.h>`.
 
 ### For GTest (auto-fetched, no manual install needed)
 
@@ -125,7 +160,7 @@ hello-world/
 
 ---
 
-## 3. Quick Start (Host Build)
+## 3. Quick Start (Host Build – Linux)
 
 ```bash
 # 1. Clone
@@ -139,16 +174,112 @@ cmake --build build --parallel
 # 3. Run tests
 ctest --test-dir build --output-on-failure
 
-# 4. Build BulkDataTransfer example
-cmake -S examples/BulkDataTransfer -B build_example \
-      -DCMAKE_BUILD_TYPE=Debug \
+# 4. Build VehicleNetwork 5-node SOME/IP demo (includes TC34xx MCAL stub)
+cmake -S examples/VehicleNetwork -B build_vehicle \
+      -DCMAKE_BUILD_TYPE=Release \
       -DSOMEIP_ROOT=${PWD}/someip
-cmake --build build_example --parallel
+cmake --build build_vehicle --parallel
+
+# 5. Run the virtual Ethernet demo
+bash examples/VehicleNetwork/launch_network.sh build_vehicle
 ```
 
 ---
 
-## 4. Detailed Build Steps
+## 4. Windows Build – Virtual Ethernet Demo
+
+The VehicleNetwork example runs on Windows using Winsock2 for UDP loopback
+sockets.  The platform abstraction layer (`Platform.h`) automatically selects
+Winsock2 vs. POSIX at compile time – no source changes required.
+
+### 4.1 Prerequisites (Windows)
+
+Install MSYS2 with MinGW-w64 as described in [Section 1](#1-prerequisites).
+
+### 4.2 Build (MSYS2 MINGW64 terminal)
+
+```bash
+# Open MSYS2 MINGW64 terminal
+git clone https://github.com/chaitanyaR/hello-world.git
+cd hello-world
+
+# Configure (GCC via MinGW; Ninja generator is optional but faster)
+cmake -S examples/VehicleNetwork \
+      -B build_vehicle_win \
+      -G "MinGW Makefiles" \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DSOMEIP_ROOT=${PWD}/someip \
+      -DSOMEIP_BUILD_TESTS=OFF
+
+# Build all 5 ECU nodes + MCAL TC34xx stub
+cmake --build build_vehicle_win --parallel
+```
+
+### 4.3 Build (Visual Studio / MSVC — x64 Developer Command Prompt)
+
+```cmd
+cmake -S examples\VehicleNetwork ^
+      -B build_vehicle_win ^
+      -G "Visual Studio 17 2022" -A x64 ^
+      -DCMAKE_BUILD_TYPE=Release ^
+      -DSOMEIP_ROOT=%CD%\someip ^
+      -DSOMEIP_BUILD_TESTS=OFF
+
+cmake --build build_vehicle_win --config Release
+```
+
+### 4.4 Run the virtual Ethernet simulation
+
+#### CMD (batch script)
+
+```cmd
+cd examples\VehicleNetwork
+launch_network.bat ..\..\build_vehicle_win\Release
+```
+
+#### PowerShell
+
+```powershell
+cd examples\VehicleNetwork
+.\launch_network.ps1 -BuildDir ..\..\build_vehicle_win\Release
+```
+
+The script:
+1. Starts all 5 node processes concurrently (BCM, ECM, ADAS, Gateway, IPC)
+2. Each node binds to its UDP port on `127.0.0.1` (Windows loopback)
+3. SOME/IP-SD frames are exchanged via Winsock2 `sendto` / `recvfrom`
+4. After ~12 s all nodes shut down and logs are printed in colour
+
+**Expected output (PowerShell, abridged):**
+
+```
+[BCM] Phase 1: Offering body services...
+[ECM] Phase 1: Offering powertrain services...
+[ADAS] EngineStatus found! Subscribing to eventgroup 0x0001...
+[IPC] │  DoorLock             : SUBSCRIBED         │
+[GW]  Routing Table (10 entries)
+[IPC] │  DoorLock             : UNAVAILABLE        │
+```
+
+### 4.5 What the platform abstraction does on Windows
+
+| Linux (POSIX)               | Windows (Winsock2 / Win32)         |
+|-----------------------------|------------------------------------|
+| `#include <sys/socket.h>`   | `#include <winsock2.h>`            |
+| `int` socket fd             | `SOCKET` (unsigned ptr)            |
+| `pthread_create()`          | `CreateThread()` (Win32)           |
+| `usleep(N)` / `sleep(N)`    | `Sleep(ms)`                        |
+| `close(sock)`               | `closesocket(sock)`                |
+| `select(fd+1, ...)`         | `select(0, ...)` (nfds ignored)   |
+| no init required            | `WSAStartup()` / `WSACleanup()`   |
+
+All differences are hidden behind `Platform.h` in
+`examples/VehicleNetwork/platform/`.  The five node mains and
+`NodeTransport.c` include only `Platform.h` and are otherwise unchanged.
+
+---
+
+## 5. Detailed Build Steps (Linux)
 
 ### 4.1 SOME/IP Library
 
@@ -200,7 +331,7 @@ cmake --build build_all --parallel
 
 ---
 
-## 5. Build Targets
+## 6. Build Targets
 
 | Target | Binary | Description |
 |--------|--------|-------------|
@@ -210,7 +341,7 @@ cmake --build build_all --parallel
 
 ---
 
-## 6. Running the Test Suite (SWE.5 / SWE.6)
+## 7. Running the Test Suite (SWE.5 / SWE.6)
 
 ```bash
 # Run all tests
@@ -245,7 +376,7 @@ Test project /path/to/build
 
 ---
 
-## 7. Code Coverage
+## 8. Code Coverage
 
 ```bash
 # Configure with coverage flags
@@ -285,7 +416,7 @@ Coverage targets (per SWE.5):
 
 ---
 
-## 8. Cross-Compilation for Embedded (arm-none-eabi)
+## 9. Cross-Compilation for Embedded (arm-none-eabi)
 
 ### 8.1 Toolchain file (`cmake/arm-none-eabi.cmake`)
 
@@ -346,7 +477,7 @@ st-flash write BulkDataTransfer.hex 0x08000000
 
 ---
 
-## 9. Static Analysis
+## 11. Static Analysis
 
 ### cppcheck
 
@@ -382,7 +513,7 @@ clang-tidy \
 
 ---
 
-## 10. Dependency Graph
+## 12. Dependency Graph
 
 ```
 BulkDataTransfer (executable)
@@ -403,7 +534,7 @@ External headers (no .c / no link dependency):
 
 ---
 
-## 11. Troubleshooting
+## 13. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|

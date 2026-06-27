@@ -23,7 +23,7 @@
 #include "VehicleServices.h"
 
 #include <stdio.h>
-#include <unistd.h>
+#include "Platform.h"
 
 #define BCM_TAG   "[BCM  0x%04X/%04X] "
 
@@ -133,7 +133,7 @@ int main(void)
     }
 
     /* --- Allow other nodes to start (500 ms) ----------------------------- */
-    usleep(500000u);
+    Platform_SleepMs(500u);
 
     /* --- Phase 1: Offer services ----------------------------------------- */
     printf("\n[BCM] Phase 1: Offering body services...\n");
@@ -155,7 +155,7 @@ int main(void)
 
     /* --- Phase 2–3: Run (listen for SD events) 7 seconds --------------- */
     printf("\n[BCM] Listening for SD events (7 s)...\n");
-    sleep(7u);
+    Platform_SleepMs(7000u);
 
     /* --- Shutdown: Stop offering ----------------------------------------- */
     printf("\n[BCM] Phase 4: StopOffer all services...\n");
@@ -172,7 +172,7 @@ int main(void)
                                      SOMEIP_SVC_LIGHT_CTRL_MAJOR,  SOMEIP_SVC_LIGHT_CTRL_MINOR);
     printf("[BCM] -> StopOfferService: LightControl\n");
 
-    usleep(200000u);  /* wait for stop-offer frames to be sent */
+    Platform_SleepMs(200u);
     NodeTransport_Deinit();
 
     printf("\n[BCM] Shutdown complete.\n");

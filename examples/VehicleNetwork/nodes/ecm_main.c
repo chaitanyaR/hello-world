@@ -22,7 +22,7 @@
 #include "VehicleServices.h"
 
 #include <stdio.h>
-#include <unistd.h>
+#include "Platform.h"
 
 /* =========================================================================
  * SD event callbacks
@@ -129,7 +129,7 @@ int main(void)
     }
 
     /* --- Allow other nodes to start (500 ms) ----------------------------- */
-    usleep(500000u);
+    Platform_SleepMs(500u);
 
     /* --- Phase 1: Offer services ----------------------------------------- */
     printf("\n[ECM] Phase 1: Offering powertrain services...\n");
@@ -148,7 +148,7 @@ int main(void)
 
     /* --- Phase 2–3: Run -------------------------------------------------- */
     printf("\n[ECM] Listening for SD events (7 s)...\n");
-    sleep(7u);
+    Platform_SleepMs(7000u);
 
     /* --- Shutdown -------------------------------------------------------- */
     printf("\n[ECM] Phase 4: StopOffer all services...\n");
@@ -161,7 +161,7 @@ int main(void)
                                      SOMEIP_SVC_THROTTLE_CTRL_MAJOR, SOMEIP_SVC_THROTTLE_CTRL_MINOR);
     printf("[ECM] -> StopOfferService: ThrottleControl\n");
 
-    usleep(200000u);
+    Platform_SleepMs(200u);
     NodeTransport_Deinit();
 
     printf("\n[ECM] Shutdown complete.\n");

@@ -26,7 +26,7 @@
 #include "VehicleServices.h"
 
 #include <stdio.h>
-#include <unistd.h>
+#include "Platform.h"
 
 /* Flags: set when a service has been found and subscribed */
 static volatile int Ipc_EngineSubscribed = 0;
@@ -202,7 +202,7 @@ int main(void)
     }
 
     /* --- Allow other nodes to start (slightly longer delay for IPC) ------ */
-    usleep(700000u);
+    Platform_SleepMs(700u);
 
     /* --- Phase 2: Find required services --------------------------------- */
     printf("\n[IPC] Phase 2: Finding required vehicle services...\n");
@@ -221,7 +221,7 @@ int main(void)
 
     /* --- Phase 3: Run (wait for offers and subscribe) -------------------- */
     printf("\n[IPC] Listening for SD events and subscribing to services (7 s)...\n");
-    sleep(7u);
+    Platform_SleepMs(7000u);
 
     /* --- Shutdown: unsubscribe ------------------------------------------- */
     printf("\n[IPC] Phase 4: Stopping subscriptions...\n");
@@ -248,7 +248,7 @@ int main(void)
         printf("[IPC] -> StopSubscribeEventgroup: LaneKeeping\n");
     }
 
-    usleep(200000u);
+    Platform_SleepMs(200u);
     NodeTransport_Deinit();
 
     printf("\n[IPC] Shutdown complete.\n");

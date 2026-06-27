@@ -27,7 +27,7 @@
 #include "VehicleServices.h"
 
 #include <stdio.h>
-#include <unistd.h>
+#include "Platform.h"
 
 /* Engine service discovered flag (set in OnOffer callback) */
 static volatile int Adas_EngineFound = 0;
@@ -176,7 +176,7 @@ int main(void)
     }
 
     /* --- Allow other nodes to start (500 ms) ----------------------------- */
-    usleep(500000u);
+    Platform_SleepMs(500u);
 
     /* --- Phase 1: Offer own services ------------------------------------ */
     printf("\n[ADAS] Phase 1: Offering ADAS services...\n");
@@ -192,7 +192,7 @@ int main(void)
     printf("[ADAS] -> OfferService: CollisionWarning (0x%04X)\n", SOMEIP_SVC_COLLISION_WARN);
 
     /* --- Phase 2: Find required services --------------------------------- */
-    usleep(200000u);
+    Platform_SleepMs(200u);
     printf("\n[ADAS] Phase 2: Finding EngineStatus (needed for ADAS enable)...\n");
 
     (void)SomeIpSd_FindService(SOMEIP_SVC_ENGINE_STATUS, SOMEIP_SVC_ENGINE_STATUS_INST,
@@ -201,7 +201,7 @@ int main(void)
 
     /* --- Phase 3: Run and process SD events ------------------------------ */
     printf("\n[ADAS] Listening for SD events (7 s)...\n");
-    sleep(7u);
+    Platform_SleepMs(7000u);
 
     /* --- Shutdown -------------------------------------------------------- */
     printf("\n[ADAS] Phase 4: StopOffer + StopSubscribe...\n");
@@ -222,7 +222,7 @@ int main(void)
         printf("[ADAS] -> StopSubscribeEventgroup: EngineStatus\n");
     }
 
-    usleep(200000u);
+    Platform_SleepMs(200u);
     NodeTransport_Deinit();
 
     printf("\n[ADAS] Shutdown complete.\n");
