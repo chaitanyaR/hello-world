@@ -12,15 +12,16 @@
 2. [Repository Layout](#2-repository-layout)
 3. [Quick Start (Host Build – Linux)](#3-quick-start-host-build)
 4. [Windows Build – Virtual Ethernet Demo](#4-windows-build--virtual-ethernet-demo)
-5. [Detailed Build Steps](#5-detailed-build-steps)
-6. [Build Targets](#6-build-targets)
-7. [Running the Test Suite (SWE.5 / SWE.6)](#7-running-the-test-suite-swe5--swe6)
-8. [Code Coverage](#8-code-coverage)
-9. [Cross-Compilation for Embedded (arm-none-eabi)](#9-cross-compilation-for-embedded-arm-none-eabi)
-10. [Aurix TC34xx MCAL Layer](#10-aurix-tc34xx-mcal-layer)
-11. [Static Analysis](#11-static-analysis)
-12. [Dependency Graph](#12-dependency-graph)
-13. [Troubleshooting](#13-troubleshooting)
+5. [Docker / Container Packaging](#5-docker--container-packaging)
+6. [Detailed Build Steps](#6-detailed-build-steps)
+7. [Build Targets](#7-build-targets)
+8. [Running the Test Suite (SWE.5 / SWE.6)](#8-running-the-test-suite-swe5--swe6)
+9. [Code Coverage](#9-code-coverage)
+10. [Cross-Compilation for Embedded (arm-none-eabi)](#10-cross-compilation-for-embedded-arm-none-eabi)
+11. [Aurix TC34xx MCAL Layer](#11-aurix-tc34xx-mcal-layer)
+12. [Static Analysis](#12-static-analysis)
+13. [Dependency Graph](#13-dependency-graph)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -279,7 +280,129 @@ All differences are hidden behind `Platform.h` in
 
 ---
 
-## 5. Detailed Build Steps (Linux)
+## 5. Docker / Container Packaging
+
+Docker is the recommended way to share the SOME/IP development environment
+without requiring recipients to install CMake, GCC, or any AUTOSAR tooling.
+
+### Concept and trade-offs
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Runtime image** (5 nodes, 1 container) | Simplest; loopback works out of the box | Doesn't model network isolation between ECUs |
+| **Multi-container** (1 container per ECU) | Each ECU has its own IP – realistic topology | Requires peer IP injection via env vars |
+| **SDK image** (dev environment) | Reproduces the build environment exactly; works in GitHub Codespaces | Larger image (~500 MB with clang-tidy/valgrind) |
+
+> **Honest critique of single-fat-container approach**: running all 5 node
+> processes inside one container shares the same network namespace.  That is
+> fine for a demo but does not model real ECU isolation.  For integration
+> testing use the multi-container compose file, which gives each container a
+> real IP address on a Docker bridge network.
+>
+> **On realism**: Docker bridge networking is still software-defined loopback –
+> it is not genuine Ethernet.  For that you need real hardware or QEMU with
+> a TAP bridge.  Docker is however the right tool for developer onboarding and
+> CI pipeline execution.
+
+### 5.1 Build Docker images
+
+```bash
+# Slim runtime image (~30 MB) – runs the 5-node simulation
+docker build --target runtime -t someip-vehicle:runtime .
+
+# Full SDK image (~500 MB) – all build tools + pre-built libs
+docker build --target sdk -t someip-vehicle:sdk .
+```
+
+### 5.2 Run the demo (single container)
+
+```bash
+# All 5 ECU nodes start inside one container on 127.0.0.1
+docker run --rm -it someip-vehicle:runtime
+```
+
+Or with Docker Compose (auto-builds if no image exists):
+
+```bash
+cd examples/VehicleNetwork
+docker compose up --build
+```
+
+Expected output (abridged, ~9 s runtime):
+```
+[BCM] Phase 1: Offering body services...
+[ECM] Phase 1: Offering powertrain services...
+[IPC] │  DoorLock : SUBSCRIBED │
+[GW]  Routing Table (10 entries)
+Network simulation complete.
+```
+
+### 5.3 Run the multi-container simulation (realistic ECU isolation)
+
+Each ECU gets its own IP on a 172.20.0.0/24 Docker bridge:
+
+```bash
+cd examples/VehicleNetwork
+docker compose -f docker-compose.multinode.yml up --build
+```
+
+Follow logs per node:
+```bash
+docker compose -f docker-compose.multinode.yml logs -f bcm
+docker compose -f docker-compose.multinode.yml logs -f ipc
+```
+
+Peer addresses are injected via `TRANSPORT_PEER_HOSTS` (comma-separated IPs).
+NodeTransport resolves each address with `getaddrinfo()`, so Docker Compose
+service names (DNS) work just as well as fixed IPs.
+
+### 5.4 SDK developer image (VS Code / Codespaces)
+
+Open the repository in VS Code with the Dev Containers extension – it reads
+`.devcontainer/devcontainer.json` and builds the `sdk` target automatically.
+
+```bash
+# Or manually: open a shell in the SDK container
+docker run --rm -it -v "$(pwd):/workspace" someip-vehicle:sdk
+
+# Inside the container – build your own app against the pre-installed SOME/IP
+cmake -S /opt/someip-sdk/examples/VehicleNetwork -B /tmp/demo \
+      -DSOMEIP_ROOT=${SOMEIP_ROOT}
+cmake --build /tmp/demo --parallel
+bash /opt/someip-sdk/examples/VehicleNetwork/launch_network.sh /tmp/demo
+```
+
+`SOMEIP_ROOT` is pre-set to `/opt/someip-sdk/someip` in the SDK image.
+
+### 5.5 Dockerfile structure
+
+```
+Dockerfile (repo root)
+├── Stage: builder   – ubuntu:24.04 + cmake + ninja + gcc; compiles everything
+├── Stage: runtime   – copies 5 node binaries + launch script only (~30 MB)
+└── Stage: sdk       – based on builder + gdb + valgrind + clang-tidy + cppcheck
+```
+
+### 5.6 Publishing to GitHub Container Registry (optional)
+
+```bash
+docker login ghcr.io -u <github-username>
+
+docker tag someip-vehicle:runtime ghcr.io/<owner>/someip-vehicle:runtime
+docker tag someip-vehicle:sdk     ghcr.io/<owner>/someip-vehicle:sdk
+
+docker push ghcr.io/<owner>/someip-vehicle:runtime
+docker push ghcr.io/<owner>/someip-vehicle:sdk
+```
+
+Once pushed, anyone can run the demo without cloning the repository:
+```bash
+docker run --rm -it ghcr.io/<owner>/someip-vehicle:runtime
+```
+
+---
+
+## 6. Detailed Build Steps (Linux)
 
 ### 4.1 SOME/IP Library
 
@@ -331,7 +454,7 @@ cmake --build build_all --parallel
 
 ---
 
-## 6. Build Targets
+## 7. Build Targets
 
 | Target | Binary | Description |
 |--------|--------|-------------|
@@ -341,7 +464,7 @@ cmake --build build_all --parallel
 
 ---
 
-## 7. Running the Test Suite (SWE.5 / SWE.6)
+## 8. Running the Test Suite (SWE.5 / SWE.6)
 
 ```bash
 # Run all tests
@@ -376,7 +499,7 @@ Test project /path/to/build
 
 ---
 
-## 8. Code Coverage
+## 9. Code Coverage
 
 ```bash
 # Configure with coverage flags
@@ -416,7 +539,7 @@ Coverage targets (per SWE.5):
 
 ---
 
-## 9. Cross-Compilation for Embedded (arm-none-eabi)
+## 10. Cross-Compilation for Embedded (arm-none-eabi)
 
 ### 8.1 Toolchain file (`cmake/arm-none-eabi.cmake`)
 
@@ -477,7 +600,58 @@ st-flash write BulkDataTransfer.hex 0x08000000
 
 ---
 
-## 11. Static Analysis
+## 11. Aurix TC34xx MCAL Layer
+
+The `mcal/tc34xx/` sub-tree provides AUTOSAR R22-11 compliant MCAL stubs for
+the Infineon Aurix TC344/TC347/TC348 family.  All hardware register accesses
+are guarded by `ETH_17_GETH_MAC_HOST_SIM` so the same source compiles both
+for the real silicon (TriCore toolchain) and for the Linux/Windows host
+simulation (GCC/MSVC).
+
+### Modules
+
+| Module | Header | Source | AUTOSAR SWS |
+|--------|--------|--------|-------------|
+| Ethernet MAC | `Eth_17_GEthMac.h` | `Eth_17_GEthMac.c` | SWS_Eth |
+| Ethernet Interface | `EthIf.h` | `EthIf.c` | SWS_EthIf |
+| Port (RMII pin-mux) | `Port_17_GtmCcu6.h` | *(stubs in header)* | SWS_Port |
+| MCU (clock tree) | `Mcu.h` | *(stubs in header)* | SWS_Mcu |
+| EQOS register map | `IfxEth_regdef.h` | — | (Infineon MCAL) |
+| Pre-compile config | `Eth_17_GEthMac_Cfg.h` | — | SWS_Eth cfg |
+
+### Build with MCAL enabled (default)
+
+```bash
+cmake -S examples/VehicleNetwork -B build_vehicle \
+      -DSOMEIP_ROOT=${PWD}/someip \
+      -DVEHICLE_BUILD_MCAL_TC34XX=ON    # (default)
+cmake --build build_vehicle --parallel
+```
+
+This produces `build_vehicle/libmcal_tc34xx.a` alongside the five ECU executables.
+
+### Build without MCAL
+
+```bash
+cmake -S examples/VehicleNetwork -B build_vehicle \
+      -DSOMEIP_ROOT=${PWD}/someip \
+      -DVEHICLE_BUILD_MCAL_TC34XX=OFF
+```
+
+### Host-simulation vs. real silicon
+
+| Feature | HOST_SIM (default) | Real TC34xx |
+|---------|--------------------|-------------|
+| Register access | no-ops (printf only) | MCAL_REG32_WRITE / _READ |
+| TX path | NodeTransport UDP | EQOS DMA descriptor ring |
+| RX path | NodeTransport thread | Eth_17_GEthMac_Receive() → EthIf_RxIndication |
+| PHY init | logged, no MDIO | TJA1100 via MDIO/MDCC |
+| Clock init | no-ops | Mcu_InitClock() → PLL0 |
+| Toolchain | GCC / MSVC | TriCore compiler (Aurix TC toolchain) |
+
+---
+
+## 12. Static Analysis
 
 ### cppcheck
 
@@ -513,7 +687,7 @@ clang-tidy \
 
 ---
 
-## 12. Dependency Graph
+## 13. Dependency Graph
 
 ```
 BulkDataTransfer (executable)
@@ -534,7 +708,7 @@ External headers (no .c / no link dependency):
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|

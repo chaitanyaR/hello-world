@@ -50,6 +50,63 @@ static Platform_Thread_t  Transport_Thread;
 static NodeSdCallbacks    Transport_Cbs;
 
 /* =========================================================================
+ * Peer hostname resolution
+ *
+ * Resolves a hostname or dotted-decimal IP string to an in_addr.
+ * Falls back to 127.0.0.1 on any error so the loopback demo always works.
+ *
+ * Docker usage: set TRANSPORT_PEER_HOSTS=host0,host1,... in the container
+ * environment to override the default 127.0.0.1 peer address for each peer
+ * index.  Docker Compose service names and fixed IPs are both accepted.
+ * ====================================================================== */
+
+static void ResolveHost(const char *host, struct in_addr *out)
+{
+    struct addrinfo  hints;
+    struct addrinfo *res = NULL;
+
+    (void)memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    if ((getaddrinfo(host, NULL, &hints, &res) == 0) && (res != NULL))
+    {
+        *out = ((struct sockaddr_in *)res->ai_addr)->sin_addr;
+        freeaddrinfo(res);
+        return;
+    }
+    /* Fallback */
+    out->s_addr = inet_addr("127.0.0.1");
+}
+
+/* Extract the i-th comma-separated token from a string into buf[bufLen].
+ * Returns the token start pointer or NULL if the index is out of range. */
+static const char *GetCsvToken(const char *csv, uint8 idx, char *buf, uint32 bufLen)
+{
+    const char *p = csv;
+    uint8       cur = 0u;
+    uint32      len;
+
+    while (cur < idx)
+    {
+        while ((*p != ',') && (*p != '\0')) { p++; }
+        if (*p == '\0') { return NULL; }
+        p++;
+        cur++;
+    }
+
+    len = 0u;
+    while ((p[len] != ',') && (p[len] != '\0') && (len < (bufLen - 1u)))
+    {
+        len++;
+    }
+    if (len == 0u) { return NULL; }
+    (void)memcpy(buf, p, (size_t)len);
+    buf[len] = '\0';
+    return buf;
+}
+
+/* =========================================================================
  * Big-endian read helpers (mirrors SomeIp_SD.c internal helpers)
  * ====================================================================== */
 
@@ -319,18 +376,35 @@ Std_ReturnType NodeTransport_Init(uint16        localPort,
         return E_NOT_OK;
     }
 
-    /* Build peer address table */
+    /* Build peer address table.
+     * TRANSPORT_PEER_HOSTS (env): comma-separated hostnames / IPs, one per
+     * peer, in the same order as peerPorts[].  Unset → 127.0.0.1 (loopback).
+     * Example (Docker Compose): TRANSPORT_PEER_HOSTS=172.20.0.11,172.20.0.12
+     */
     count = (peerCount > NODE_TRANSPORT_MAX_PEERS)
                 ? NODE_TRANSPORT_MAX_PEERS
                 : peerCount;
     Transport_PeerCount = count;
 
-    for (i = 0u; i < count; i++)
     {
-        (void)memset(&Transport_Peers[i], 0, sizeof(Transport_Peers[i]));
-        Transport_Peers[i].sin_family      = AF_INET;
-        Transport_Peers[i].sin_addr.s_addr = inet_addr("127.0.0.1");
-        Transport_Peers[i].sin_port        = htons(peerPorts[i]);
+        const char *peersEnv = getenv("TRANSPORT_PEER_HOSTS");
+        char        hostBuf[128];
+
+        for (i = 0u; i < count; i++)
+        {
+            const char *host = "127.0.0.1";
+
+            if ((peersEnv != NULL) &&
+                (GetCsvToken(peersEnv, i, hostBuf, (uint32)sizeof(hostBuf)) != NULL))
+            {
+                host = hostBuf;
+            }
+
+            (void)memset(&Transport_Peers[i], 0, sizeof(Transport_Peers[i]));
+            Transport_Peers[i].sin_family = AF_INET;
+            Transport_Peers[i].sin_port   = htons(peerPorts[i]);
+            ResolveHost(host, &Transport_Peers[i].sin_addr);
+        }
     }
 
     (void)memset(&Transport_Cbs, 0, sizeof(Transport_Cbs));

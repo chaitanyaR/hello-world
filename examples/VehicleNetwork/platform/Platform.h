@@ -81,6 +81,7 @@ static inline void Platform_NetworkDeinit(void)
 # include <sys/select.h>         /* select(), fd_set, struct timeval        */
 # include <netinet/in.h>         /* sockaddr_in, INADDR_ANY, htons()        */
 # include <arpa/inet.h>          /* inet_addr()                             */
+# include <netdb.h>              /* getaddrinfo(), freeaddrinfo()           */
 # include <pthread.h>            /* pthread_create(), pthread_join()        */
 # include <unistd.h>             /* close(), usleep()                       */
 # include <errno.h>              /* errno                                   */
