@@ -122,10 +122,22 @@ add_node_executable(gateway_node nodes/gateway_main.c)
 add_node_executable(ipc_node     nodes/ipc_main.c)
 
 # ---------------------------------------------------------------------------
+# HPC node – ASAM SOVD 1.0 HTTP REST diagnostic gateway (SOME/IP consumer)
+# Disable with -DVEHICLE_BUILD_HPC=OFF
+# ---------------------------------------------------------------------------
+option(VEHICLE_BUILD_HPC "Build the SOVD HPC diagnostic node" ON)
+if(VEHICLE_BUILD_HPC)
+    add_subdirectory(hpc)
+endif()
+
+# ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
-install(TARGETS bcm_node ecm_node adas_node gateway_node ipc_node
-        RUNTIME DESTINATION bin)
+set(INSTALL_TARGETS bcm_node ecm_node adas_node gateway_node ipc_node)
+if(VEHICLE_BUILD_HPC)
+    list(APPEND INSTALL_TARGETS hpc_node)
+endif()
+install(TARGETS ${INSTALL_TARGETS} RUNTIME DESTINATION bin)
 
 if(WIN32)
     install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/launch_network.bat
@@ -146,7 +158,7 @@ message(STATUS " Platform    : ${CMAKE_SYSTEM_NAME}")
 message(STATUS " Build type  : ${CMAKE_BUILD_TYPE}")
 message(STATUS " SOMEIP_ROOT : ${SOMEIP_ROOT}")
 message(STATUS " Compiler    : ${CMAKE_C_COMPILER}")
-message(STATUS " Nodes       : bcm ecm adas gateway ipc")
+message(STATUS " Nodes       : bcm ecm adas gateway ipc hpc(sovd)")
 if(VEHICLE_BUILD_MCAL_TC34XX)
 message(STATUS " MCAL TC34xx : enabled (host-simulation mode)")
 endif()

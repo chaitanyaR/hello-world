@@ -23,6 +23,7 @@
 #define NODE_ID_ADAS     ((uint8)0x03u)   /* ADAS Controller        */
 #define NODE_ID_GATEWAY  ((uint8)0x04u)   /* Domain Gateway         */
 #define NODE_ID_IPC      ((uint8)0x05u)   /* Instrument Cluster     */
+#define NODE_ID_HPC      ((uint8)0x06u)   /* SOVD High-Performance Computer */
 
 /* =========================================================================
  * UDP port assignments (host simulation – loopback 127.0.0.1)
@@ -35,6 +36,8 @@
 #define NODE_PORT_ADAS       ((uint16)30503u)
 #define NODE_PORT_GATEWAY    ((uint16)30504u)
 #define NODE_PORT_IPC        ((uint16)30505u)
+#define NODE_PORT_HPC        ((uint16)30506u)   /* SOVD HPC – HTTP port 8080, SOME/IP port 30506 */
+#define SOVD_HTTP_PORT       ((uint16)8080u)    /* ASAM SOVD 1.0 REST interface */
 
 /* =========================================================================
  * BCM – Body Control Module services
@@ -101,6 +104,17 @@
  * Gateway – Domain Gateway services
  * Switch port 4 | 100BASE-T1 | 169.254.1.4 (production)
  * ====================================================================== */
+/* =========================================================================
+ * HPC – High Performance Computer / SOVD node
+ * Switch port 6 | 100BASE-T1 | 169.254.1.6 (production) | HTTP 8080
+ * ====================================================================== */
+/** SovdDiagStatus – SOVD server heartbeat and capability announcement */
+#define SOMEIP_SVC_SOVD_STATUS          ((SomeIp_ServiceIdType)0x0501u)
+#define SOMEIP_SVC_SOVD_STATUS_INST     ((SomeIp_InstanceIdType)0x0001u)
+#define SOMEIP_SVC_SOVD_STATUS_EG       ((SomeIp_EventGroupIdType)0x0001u)
+#define SOMEIP_SVC_SOVD_STATUS_MAJOR    ((uint8)1u)
+#define SOMEIP_SVC_SOVD_STATUS_MINOR    ((uint32)0u)
+
 /** GatewayRouting – cross-domain service routing/proxying */
 #define SOMEIP_SVC_GW_ROUTING           ((SomeIp_ServiceIdType)0x0401u)
 #define SOMEIP_SVC_GW_ROUTING_INST      ((SomeIp_InstanceIdType)0x0001u)
@@ -129,6 +143,7 @@ static inline const char *Vehicle_ServiceName(SomeIp_ServiceIdType svcId)
         case 0x0301u: return "LaneKeeping";
         case 0x0302u: return "CollisionWarning";
         case 0x0401u: return "GatewayRouting";
+        case 0x0501u: return "SovdDiagStatus";
         default:      return "Unknown";
     }
 }

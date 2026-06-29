@@ -63,7 +63,11 @@ COPY --from=builder /build/ecm_node     /usr/local/bin/
 COPY --from=builder /build/adas_node    /usr/local/bin/
 COPY --from=builder /build/gateway_node /usr/local/bin/
 COPY --from=builder /build/ipc_node     /usr/local/bin/
+COPY --from=builder /build/hpc_node     /usr/local/bin/
 COPY examples/VehicleNetwork/launch_network.sh /usr/local/bin/launch_network.sh
+# SOVD dashboard HTML (served by hpc_node HTTP server at /dashboard)
+RUN mkdir -p /usr/local/share/sovd
+COPY examples/VehicleNetwork/hpc/dashboard/index.html /usr/local/share/sovd/index.html
 # Strip Windows CR (\r) if the host checked out with CRLF (Docker Desktop on Windows)
 RUN sed -i 's/\r//' /usr/local/bin/launch_network.sh \
  && chmod +x /usr/local/bin/launch_network.sh
@@ -71,7 +75,10 @@ RUN sed -i 's/\r//' /usr/local/bin/launch_network.sh \
 WORKDIR /home/someip
 USER someip
 
-# Default: run all 5 nodes concurrently on the container's loopback
+# SOVD HTTP dashboard port
+EXPOSE 8080
+
+# Default: run all 6 nodes (including HPC SOVD) on the container's loopback
 CMD ["bash", "/usr/local/bin/launch_network.sh", "/usr/local/bin"]
 
 # ─── Stage 3: sdk (full developer environment ~500 MB) ───────────────────────
