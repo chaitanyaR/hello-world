@@ -13,8 +13,10 @@
 /* -------------------------------------------------------------------------
  * Compiler vendor / version detection
  * ---------------------------------------------------------------------- */
-#if defined(__GNUC__)
-#  define COMPILER_VENDOR_ID  0x0011u  /* GCC */
+#if defined(_MSC_VER)
+#  define COMPILER_VENDOR_ID  0x0062u  /* Microsoft MSVC */
+#elif defined(__GNUC__)
+#  define COMPILER_VENDOR_ID  0x0011u  /* GCC / MinGW-w64 / Clang */
 #elif defined(__ICCARM__)
 #  define COMPILER_VENDOR_ID  0x0051u  /* IAR */
 #elif defined(__CC_ARM) || defined(__ARMCC_VERSION)

@@ -40,21 +40,27 @@
 #define STD_ACTIVE 1u
 #define STD_IDLE   0u
 
-/* ----- Base types -------------------------------------------------------- */
-typedef unsigned char       uint8;
-typedef unsigned short      uint16;
-typedef unsigned long       uint32;
-typedef unsigned long long  uint64;
+/* ----- Base types --------------------------------------------------------
+ * Use fixed-width types from <stdint.h> (C99, available on all supported
+ * compilers: GCC, MinGW-w64, MSVC 2015+) to avoid the LP64/LLP64 mismatch
+ * where 'unsigned long' is 64-bit on Linux x86_64 but 32-bit on Windows.
+ * -------------------------------------------------------------------- */
+#include <stdint.h>
 
-typedef signed char         sint8;
-typedef signed short        sint16;
-typedef signed long         sint32;
-typedef signed long long    sint64;
+typedef uint8_t             uint8;
+typedef uint16_t            uint16;
+typedef uint32_t            uint32;
+typedef uint64_t            uint64;
+
+typedef int8_t              sint8;
+typedef int16_t             sint16;
+typedef int32_t             sint32;
+typedef int64_t             sint64;
 
 typedef float               float32;
 typedef double              float64;
 
-typedef unsigned char       boolean;
+typedef uint8_t             boolean;
 
 /* ----- Return type ------------------------------------------------------- */
 typedef uint8 Std_ReturnType;

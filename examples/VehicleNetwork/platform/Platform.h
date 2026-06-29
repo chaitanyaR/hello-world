@@ -118,9 +118,10 @@ static inline void Platform_NetworkDeinit(void) { }
 #endif  /* _WIN32 */
 
 /* =========================================================================
- * Common
+ * Common (both platforms)
  * ====================================================================== */
-#include <string.h>
-#include <stdio.h>
+#include <string.h>   /* memset, memcpy */
+#include <stdio.h>    /* printf, fprintf, perror */
+#include <stdlib.h>   /* getenv, exit */
 
 #endif  /* PLATFORM_H */

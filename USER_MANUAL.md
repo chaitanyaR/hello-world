@@ -221,16 +221,37 @@ Press **Ctrl-C** at any time to stop all nodes cleanly.
 
 ## 6. Quick Start — Windows
 
-### Prerequisites
+Two toolchain options are supported. **MSYS2 / MinGW-w64** is recommended
+because it needs no licence and the build steps are identical to Linux.
+**MSVC** (Visual Studio) is also fully supported.
 
-Install **MSYS2** from <https://www.msys2.org/>, then open the **MSYS2 MINGW64**
-terminal:
+---
+
+### Option A — MSYS2 / MinGW-w64 (recommended)
+
+#### Step 1 — Install MSYS2
+
+Download from <https://www.msys2.org/> and run the installer.  
+Open the **MSYS2 MINGW64** shell (not "MSYS2 MSYS") and install the toolchain:
 
 ```bash
-pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake git
+pacman -Syu                                   # update package database first
+pacman -S --needed \
+    mingw-w64-x86_64-toolchain \
+    mingw-w64-x86_64-cmake \
+    mingw-w64-x86_64-ninja \
+    git
 ```
 
-### Build (MSYS2 MINGW64 terminal)
+Verify:
+```bash
+gcc --version      # must print mingw-w64 or similar
+cmake --version    # must be 3.16 or later
+```
+
+#### Step 2 — Clone and build
+
+Use the **MSYS2 MINGW64** shell for all commands below:
 
 ```bash
 git clone https://github.com/chaitanyaR/hello-world.git
@@ -238,7 +259,7 @@ cd hello-world
 
 cmake -S examples/VehicleNetwork \
       -B build_vehicle_win \
-      -G "MinGW Makefiles" \
+      -G "Ninja" \
       -DCMAKE_BUILD_TYPE=Release \
       -DSOMEIP_ROOT="${PWD}/someip" \
       -DSOMEIP_BUILD_TESTS=OFF
@@ -246,22 +267,99 @@ cmake -S examples/VehicleNetwork \
 cmake --build build_vehicle_win --parallel
 ```
 
-### Run — PowerShell (recommended)
+> `-DSOMEIP_BUILD_TESTS=OFF` skips the GTest download (requires internet).
+> Remove it only if you want the unit test suite and have a working internet
+> connection.
+
+Successful output ends with:
+```
+[100%] Built target ipc_node
+[100%] Built target mcal_tc34xx
+```
+
+The build produces five `.exe` files inside `build_vehicle_win\`.
+
+#### Step 3 — Run (PowerShell — recommended, colour output)
+
+Open **Windows PowerShell** (not the MSYS2 shell) in the repository root:
 
 ```powershell
+# Allow script execution for current user if not already set
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 cd examples\VehicleNetwork
 .\launch_network.ps1 -BuildDir ..\..\build_vehicle_win
 ```
 
-### Run — CMD batch script
+#### Step 3 — Run (CMD — alternative)
 
 ```cmd
 cd examples\VehicleNetwork
 launch_network.bat ..\..\build_vehicle_win
 ```
 
-The PowerShell script shows each ECU's output in a different colour.
-The CMD script writes logs to `node_logs\` and prints them after completion.
+---
+
+### Option B — Visual Studio / MSVC
+
+#### Prerequisites
+
+- Visual Studio 2022 (or 2019 v16.8+) with the **"Desktop development with C++"** workload
+- CMake 3.16+ (bundled with Visual Studio; or install separately from cmake.org)
+
+#### Build (x64 Native Tools Command Prompt)
+
+Open **"x64 Native Tools Command Prompt for VS 2022"** from the Start Menu:
+
+```cmd
+git clone https://github.com/chaitanyaR/hello-world.git
+cd hello-world
+
+cmake -S examples\VehicleNetwork ^
+      -B build_vehicle_msvc ^
+      -G "Visual Studio 17 2022" -A x64 ^
+      -DCMAKE_BUILD_TYPE=Release ^
+      -DSOMEIP_ROOT=%CD%\someip ^
+      -DSOMEIP_BUILD_TESTS=OFF
+
+cmake --build build_vehicle_msvc --config Release --parallel
+```
+
+Binaries are placed in `build_vehicle_msvc\Release\`.
+
+#### Run (PowerShell)
+
+```powershell
+cd examples\VehicleNetwork
+.\launch_network.ps1 -BuildDir ..\..\build_vehicle_msvc\Release
+```
+
+#### Run (CMD)
+
+```cmd
+cd examples\VehicleNetwork
+launch_network.bat ..\..\build_vehicle_msvc\Release
+```
+
+---
+
+### What to expect
+
+The PowerShell script shows each ECU in a different colour and runs for ~9 seconds:
+
+```
+[BCM] Phase 1: Offering body services...
+[ECM] Phase 1: Offering powertrain services...
+[ADAS] EngineStatus found! Subscribing to eventgroup 0x0001...
+[IPC] │  DoorLock             : SUBSCRIBED         │
+[GW]  Routing Table (8 entries) — all UP
+[BCM] Shutdown complete.
+...
+Network simulation complete.
+```
+
+The CMD script writes per-node logs to `node_logs\` and prints them after all
+5 nodes exit.
 
 ---
 
