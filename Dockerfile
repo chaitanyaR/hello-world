@@ -64,7 +64,9 @@ COPY --from=builder /build/adas_node    /usr/local/bin/
 COPY --from=builder /build/gateway_node /usr/local/bin/
 COPY --from=builder /build/ipc_node     /usr/local/bin/
 COPY examples/VehicleNetwork/launch_network.sh /usr/local/bin/launch_network.sh
-RUN chmod +x /usr/local/bin/launch_network.sh
+# Strip Windows CR (\r) if the host checked out with CRLF (Docker Desktop on Windows)
+RUN sed -i 's/\r//' /usr/local/bin/launch_network.sh \
+ && chmod +x /usr/local/bin/launch_network.sh
 
 WORKDIR /home/someip
 USER someip
