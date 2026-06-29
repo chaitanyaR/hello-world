@@ -33,6 +33,7 @@
 
 # CMake build output
 build/
+build_*/
 cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
