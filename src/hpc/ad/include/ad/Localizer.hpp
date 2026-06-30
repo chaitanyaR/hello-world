@@ -40,7 +40,9 @@ public:
     void update(const GnssMeasurement& gnss, const ImuMeasurement& imu) override;
     Pose currentPose() const override;
 private:
-    Pose pose_{};
+    Pose  pose_{};
+    float velMs_{0.0f};
+    float headingDeg_{0.0f};
 };
 
 } // namespace sdv::hpc::ad

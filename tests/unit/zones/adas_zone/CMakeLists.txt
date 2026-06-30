@@ -1,1 +1,2 @@
-# Phase 6: zone unit tests for adas_zone
+add_unit_test(test_zone_adas_zone test_safety_gateway.cpp)
+target_link_libraries(test_zone_adas_zone PRIVATE sdv_adas_zone_lib)

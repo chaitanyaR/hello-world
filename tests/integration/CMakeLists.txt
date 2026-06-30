@@ -1,12 +1,12 @@
-# Integration tests require simulation mode (all 5 processes on loopback).
-# Implemented in Phase 2/3.
-
-# add_executable(integration_hpc_powertrain_someip test_hpc_powertrain_someip.cpp)
-# target_link_libraries(integration_hpc_powertrain_someip
-#     PRIVATE sdv_someip_middleware GTest::gtest_main)
-# gtest_discover_tests(integration_hpc_powertrain_someip TEST_PREFIX "integration_")
-
-# add_executable(integration_sovd_rest_api test_sovd_rest_api.cpp)
-# target_link_libraries(integration_sovd_rest_api
-#     PRIVATE sdv_sovd_middleware GTest::gtest_main)
-# gtest_discover_tests(integration_sovd_rest_api TEST_PREFIX "integration_")
+# In-process integration test: exercises all zone ECU components together
+# without SOME/IP, verifying the full sensor → actuator data flow.
+add_executable(integration_full_pipeline test_full_pipeline.cpp)
+target_link_libraries(integration_full_pipeline
+    PRIVATE
+        sdv_adas_zone_lib
+        sdv_powertrain_lib
+        sdv_telemetry_lib
+        sdv_body_lib
+        GTest::gtest_main
+)
+gtest_discover_tests(integration_full_pipeline TEST_PREFIX "integration_")
