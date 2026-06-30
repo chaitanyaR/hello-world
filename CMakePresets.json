@@ -1,0 +1,52 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_COVERAGE": "ON",
+        "SDV_SIMULATION_MODE": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SDV_SIMULATION_MODE": "OFF"
+      }
+    },
+    {
+      "name": "simulation",
+      "displayName": "Simulation (all 5 processes on loopback)",
+      "binaryDir": "${sourceDir}/build/sim",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SDV_SIMULATION_MODE": "ON",
+        "ENABLE_COVERAGE": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug",      "configurePreset": "debug" },
+    { "name": "release",    "configurePreset": "release" },
+    { "name": "simulation", "configurePreset": "simulation" }
+  ],
+  "testPresets": [
+    {
+      "name": "unit",
+      "configurePreset": "debug",
+      "filter": { "include": { "name": "unit_" } }
+    },
+    {
+      "name": "integration",
+      "configurePreset": "simulation",
+      "filter": { "include": { "name": "integration_" } },
+      "execution": { "timeout": 60 }
+    }
+  ]
+}

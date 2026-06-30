@@ -1,0 +1,75 @@
+package org.sdv.hpc.powertrain
+
+import org.sdv.common.CommonTypes.* from "common_types.fidl"
+
+interface PowertrainService {
+    version { major 1 minor 0 }
+
+    // --- Methods (request-response) ---
+    method RequestTorque {
+        in  { Float requestedNm; UInt8 priority }
+        out { Float grantedNm; PowertrainStatus status }
+    }
+
+    method GetBatteryState {
+        out { BatteryState state }
+    }
+
+    method SetRegenBrakingMode {
+        in  { RegenMode mode }
+        out { Boolean accepted }
+    }
+
+    // --- Diagnostic method (used by SOVD ZoneForwarder) ---
+    method ReadDtcs {
+        out { DtcList dtcs }
+    }
+
+    method ClearDtc {
+        in  { DtcCode dtcCode }
+        out { Boolean cleared }
+    }
+
+    // --- Attributes (stateful, notifiable) ---
+    attribute BatteryState batteryState  readonly noSubscriptions
+    attribute Float        currentTorqueNm readonly
+
+    // --- Broadcasts (fire-and-forget) ---
+    broadcast PowertrainFaultEvent {
+        out { DtcCode dtcCode; FaultSeverity severity; String description }
+    }
+
+    broadcast TorqueActualEvent {
+        out { Float actualNm; UInt64 timestampUs }
+    }
+}
+
+// --- Types ---
+enumeration PowertrainStatus {
+    OK             = 0
+    TORQUE_LIMITED = 1
+    FAULT          = 2
+}
+
+enumeration RegenMode {
+    OFF  = 0
+    LOW  = 1
+    HIGH = 2
+}
+
+struct BatteryState {
+    Float   socPercent
+    Float   voltageV
+    Float   currentA
+    Float   tempCelsius
+    Boolean isCharging
+}
+
+struct DtcEntry {
+    DtcCode       code
+    FaultSeverity severity
+    String        description
+    UInt64        timestampUs
+}
+
+array DtcList of DtcEntry

@@ -1,0 +1,70 @@
+package org.sdv.sovd
+
+import org.sdv.common.CommonTypes.* from "common_types.fidl"
+
+// Shared types used by the DiagnosticService exposed by every zone ECU.
+// This service (ID 0x1FFF) is the SOME/IP target for SOVD ZoneForwarder.
+typeCollection SovdTypes {
+    version { major 1 minor 0 }
+
+    enumeration RoutineState {
+        IDLE      = 0
+        PENDING   = 1
+        RUNNING   = 2
+        COMPLETED = 3
+        FAILED    = 4
+    }
+
+    struct DataElement {
+        String name
+        String value
+        String unit
+        UInt64 timestampUs
+    }
+
+    struct RoutineStatus {
+        String       routineId
+        RoutineState state
+        UInt8        progressPercent
+        String       resultMessage
+    }
+
+    array DataElementList of DataElement
+}
+
+// One DiagnosticService instance per zone; all share the same interface.
+interface DiagnosticService {
+    version { major 1 minor 0 }
+
+    method ReadDataElements {
+        out { SovdTypes.DataElementList elements }
+    }
+
+    method ReadFaults {
+        out { DtcList faults }
+    }
+
+    method ClearFault {
+        in  { DtcCode code }
+        out { Boolean cleared }
+    }
+
+    method StartRoutine {
+        in  { String routineId }
+        out { Boolean accepted }
+    }
+
+    method GetRoutineStatus {
+        in  { String routineId }
+        out { SovdTypes.RoutineStatus status }
+    }
+}
+
+struct DtcEntry {
+    DtcCode       code
+    FaultSeverity severity
+    String        description
+    UInt64        timestampUs
+}
+
+array DtcList of DtcEntry

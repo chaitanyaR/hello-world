@@ -1,0 +1,77 @@
+package org.sdv.hpc.body
+
+import org.sdv.common.CommonTypes.* from "common_types.fidl"
+
+interface BodyService {
+    version { major 1 minor 0 }
+
+    method SetLighting {
+        in  { LightingZone zone; LightingState state }
+        out { Boolean ok }
+    }
+
+    method SetDoorLock {
+        in  { DoorId door; Boolean locked }
+        out { Boolean ok }
+    }
+
+    method SetHvac {
+        in  { HvacCommand cmd }
+        out { Boolean ok }
+    }
+
+    method ReadDtcs {
+        out { BodyDtcList dtcs }
+    }
+
+    method RunLightingTest {
+        out { Boolean started }
+    }
+
+    broadcast BodyDiagnosticEvent {
+        out { DtcCode dtcCode; FaultSeverity severity }
+    }
+
+    broadcast DoorStateChangeEvent {
+        out { DoorId door; Boolean locked; Boolean open }
+    }
+}
+
+enumeration LightingZone {
+    HEADLIGHTS        = 0
+    TAIL_LIGHTS       = 1
+    INTERIOR_FRONT    = 2
+    INTERIOR_REAR     = 3
+    AMBIENT           = 4
+    DAYTIME_RUNNING   = 5
+}
+
+enumeration LightingState {
+    OFF   = 0
+    ON    = 1
+    DIM50 = 2
+    DIM25 = 3
+}
+
+enumeration DoorId {
+    FRONT_LEFT  = 0
+    FRONT_RIGHT = 1
+    REAR_LEFT   = 2
+    REAR_RIGHT  = 3
+    TRUNK       = 4
+}
+
+struct HvacCommand {
+    Float   driverSetpointCelsius
+    Float   passengerSetpointCelsius
+    Boolean acEnabled
+    UInt8   fanSpeedPercent
+}
+
+struct BodyDtcEntry {
+    DtcCode       code
+    FaultSeverity severity
+    String        description
+}
+
+array BodyDtcList of BodyDtcEntry

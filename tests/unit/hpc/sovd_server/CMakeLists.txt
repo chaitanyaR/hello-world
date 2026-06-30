@@ -1,0 +1,2 @@
+add_unit_test(test_hpc_sovd_server test_hpc_sovd_resource.cpp)
+target_link_libraries(test_hpc_sovd_server PRIVATE sdv_hpc_sovd_server)

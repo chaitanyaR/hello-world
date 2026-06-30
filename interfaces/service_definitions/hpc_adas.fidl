@@ -1,0 +1,85 @@
+package org.sdv.hpc.adas
+
+import org.sdv.common.CommonTypes.* from "common_types.fidl"
+
+interface AdasZoneService {
+    version { major 1 minor 0 }
+
+    method GetSensorFrame {
+        out { SensorFrame frame }
+    }
+
+    method SendActuatorCommand {
+        in  { ActuatorCommand cmd }
+        out { Boolean accepted }
+    }
+
+    method ReadDtcs {
+        out { AdasDtcList dtcs }
+    }
+
+    method RunSensorCalibration {
+        out { Boolean started }
+    }
+
+    broadcast SensorDataEvent {
+        out {
+            RadarTargetList radarTargets
+            LidarPointCloud lidarCloud
+            CameraImageMeta cameraMeta
+            UInt64          timestampUs
+        }
+    }
+
+    broadcast SafetyStateEvent {
+        out { SafetyState state; UInt8 asilLevel }
+    }
+}
+
+struct ActuatorCommand {
+    Float   steeringAngleDeg
+    Float   throttlePercent
+    Float   brakePressureBar
+    Boolean emergencyStop
+    UInt64  timestampUs
+}
+
+struct RadarTarget {
+    Float rangeM
+    Float azimuthDeg
+    Float velocityMps
+    Float snrDb
+}
+
+array RadarTargetList of RadarTarget
+
+struct LidarPoint {
+    Float x
+    Float y
+    Float z
+    Float intensity
+}
+
+array LidarPointCloud of LidarPoint
+
+struct CameraImageMeta {
+    UInt32 width
+    UInt32 height
+    UInt64 captureTimestampUs
+    String encoding
+}
+
+struct SensorFrame {
+    RadarTargetList radarTargets
+    LidarPointCloud lidarCloud
+    CameraImageMeta cameraMeta
+    UInt64          timestampUs
+}
+
+struct AdasDtcEntry {
+    DtcCode       code
+    FaultSeverity severity
+    String        description
+}
+
+array AdasDtcList of AdasDtcEntry

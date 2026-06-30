@@ -1,0 +1,4 @@
+add_unit_test(test_someip_service_registry
+    test_service_registry.cpp
+)
+target_link_libraries(test_someip_service_registry PRIVATE sdv_someip_middleware)
