@@ -1,0 +1,21 @@
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-SOMEIP_deployment_spec.fdepl"
+import "../service_definitions/hpc_telemetry.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface org.sdv.hpc.telemetry.TelemetryService {
+    SomeIpServiceID = 0x1003
+
+    method TriggerOtaUpdate       { SomeIpMethodID = 0x0001 }
+    method GetConnectivityStatus  { SomeIpMethodID = 0x0002 }
+    method GetGnssPosition        { SomeIpMethodID = 0x0003 }
+    method ReadDtcs               { SomeIpMethodID = 0x0004 }
+
+    broadcast VehicleTelemetryEvent  { SomeIpEventID = 0x8001; SomeIpEventGroups = { 0x0013 } }
+    broadcast OtaStatusEvent         { SomeIpEventID = 0x8002; SomeIpEventGroups = { 0x0013 } }
+    broadcast ConnectivityChangeEvent{ SomeIpEventID = 0x8003; SomeIpEventGroups = { 0x0013 } }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as TelemetryEcu {
+    instance org.sdv.hpc.telemetry.TelemetryService {
+        SomeIpInstanceID = 0x0001
+    }
+}

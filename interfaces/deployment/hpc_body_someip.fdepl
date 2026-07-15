@@ -1,0 +1,21 @@
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-SOMEIP_deployment_spec.fdepl"
+import "../service_definitions/hpc_body.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface org.sdv.hpc.body.BodyService {
+    SomeIpServiceID = 0x1004
+
+    method SetLighting      { SomeIpMethodID = 0x0001 }
+    method SetDoorLock      { SomeIpMethodID = 0x0002 }
+    method SetHvac          { SomeIpMethodID = 0x0003 }
+    method ReadDtcs         { SomeIpMethodID = 0x0004 }
+    method RunLightingTest  { SomeIpMethodID = 0x0005 }
+
+    broadcast BodyDiagnosticEvent  { SomeIpEventID = 0x8001; SomeIpEventGroups = { 0x0014 } }
+    broadcast DoorStateChangeEvent { SomeIpEventID = 0x8002; SomeIpEventGroups = { 0x0014 } }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as BodyEcu {
+    instance org.sdv.hpc.body.BodyService {
+        SomeIpInstanceID = 0x0001
+    }
+}

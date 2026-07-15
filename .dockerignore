@@ -1,0 +1,10 @@
+build/
+.git/
+interfaces/generated/
+*.o
+*.a
+*.so
+*.so.*
+*.out
+*.exe
+.cache/

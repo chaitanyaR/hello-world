@@ -1,0 +1,35 @@
+PROJECT_NAME           = "SDV HPC + Zonal ECU Platform"
+PROJECT_NUMBER         = 0.1.0
+PROJECT_BRIEF          = "Software Defined Vehicle: HPC + 4 Zonal ECUs over SOME/IP and SOVD (ISO 17879)"
+OUTPUT_DIRECTORY       = build/docs
+
+INPUT                  = src middleware interfaces docs/architecture.md
+FILE_PATTERNS          = *.hpp *.h *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */generated/* */build/*
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+HTML_TIMESTAMP         = NO
+
+USE_MDFILE_AS_MAINPAGE = docs/architecture.md
+
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 4
+CLASS_DIAGRAMS         = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+UML_LOOK               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+
+WARN_IF_UNDOCUMENTED   = NO
+QUIET                  = YES
+WARNINGS               = YES

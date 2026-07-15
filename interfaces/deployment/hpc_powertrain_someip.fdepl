@@ -1,0 +1,21 @@
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-SOMEIP_deployment_spec.fdepl"
+import "../service_definitions/hpc_powertrain.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface org.sdv.hpc.powertrain.PowertrainService {
+    SomeIpServiceID = 0x1001
+
+    method RequestTorque      { SomeIpMethodID = 0x0001 }
+    method GetBatteryState    { SomeIpMethodID = 0x0002 }
+    method SetRegenBrakingMode{ SomeIpMethodID = 0x0003 }
+    method ReadDtcs           { SomeIpMethodID = 0x0004 }
+    method ClearDtc           { SomeIpMethodID = 0x0005 }
+
+    broadcast PowertrainFaultEvent { SomeIpEventID = 0x8001; SomeIpEventGroups = { 0x0011 } }
+    broadcast TorqueActualEvent    { SomeIpEventID = 0x8002; SomeIpEventGroups = { 0x0011 } }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as PowertrainEcu {
+    instance org.sdv.hpc.powertrain.PowertrainService {
+        SomeIpInstanceID = 0x0001
+    }
+}

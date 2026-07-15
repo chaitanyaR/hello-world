@@ -1,0 +1,65 @@
+package org.sdv.hpc.telemetry
+
+import org.sdv.common.CommonTypes.* from "common_types.fidl"
+
+interface TelemetryService {
+    version { major 1 minor 0 }
+
+    method TriggerOtaUpdate {
+        in  { String packageUrl; String sha256Hash }
+        out { Boolean accepted }
+    }
+
+    method GetConnectivityStatus {
+        out { ConnectivityStatus status }
+    }
+
+    method GetGnssPosition {
+        out { GnssPosition position; UInt64 timestampUs }
+    }
+
+    method ReadDtcs {
+        out { TelemetryDtcList dtcs }
+    }
+
+    broadcast VehicleTelemetryEvent {
+        out {
+            Float        speedKph
+            Float        headingDeg
+            GnssPosition position
+            UInt64       timestampUs
+        }
+    }
+
+    broadcast OtaStatusEvent {
+        out { OtaState state; UInt8 progressPercent; String errorMsg }
+    }
+
+    broadcast ConnectivityChangeEvent {
+        out { ConnectivityStatus status }
+    }
+}
+
+enumeration OtaState {
+    IDLE        = 0
+    DOWNLOADING = 1
+    VERIFYING   = 2
+    INSTALLING  = 3
+    DONE        = 4
+    FAILED      = 5
+}
+
+struct ConnectivityStatus {
+    Boolean lteConnected
+    Boolean v2xConnected
+    UInt8   signalStrengthPercent
+    String  networkType
+}
+
+struct TelemetryDtcEntry {
+    DtcCode       code
+    FaultSeverity severity
+    String        description
+}
+
+array TelemetryDtcList of TelemetryDtcEntry

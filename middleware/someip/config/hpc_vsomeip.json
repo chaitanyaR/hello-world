@@ -1,0 +1,25 @@
+{
+    "unicast": "127.0.0.1",
+    "logging": { "level": "info", "console": true },
+    "applications": [
+        { "name": "sdv_hpc", "id": "0x0100" }
+    ],
+    "services": [
+        { "service": "0x1001", "instance": "0x0001",
+          "unreliable": "30001" },
+        { "service": "0x1002", "instance": "0x0001",
+          "unreliable": "30002" },
+        { "service": "0x1003", "instance": "0x0001",
+          "unreliable": "30003" },
+        { "service": "0x1004", "instance": "0x0001",
+          "unreliable": "30004" },
+        { "service": "0x1FFF", "instance": "0x0001",
+          "unreliable": "30099" }
+    ],
+    "service-discovery": {
+        "enable": true,
+        "multicast": "224.0.0.1",
+        "port": "30490",
+        "protocol": "udp"
+    }
+}

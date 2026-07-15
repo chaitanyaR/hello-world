@@ -30,3 +30,7 @@
 
 # Debug files
 *.dSYM/
+
+# CMake build directories
+build/
+interfaces/generated/

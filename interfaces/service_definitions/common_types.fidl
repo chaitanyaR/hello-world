@@ -1,0 +1,32 @@
+package org.sdv.common
+
+typeCollection CommonTypes {
+    version { major 1 minor 0 }
+
+    enumeration FaultSeverity {
+        INFO    = 0
+        WARNING = 1
+        ERROR   = 2
+        CRITICAL= 3
+    }
+
+    enumeration SafetyState {
+        NOMINAL      = 0
+        DEGRADED     = 1
+        SAFE_STOP    = 2
+        EMERGENCY    = 3
+    }
+
+    struct GnssPosition {
+        Double latitudeDeg
+        Double longitudeDeg
+        Float  altitudeM
+        Float  hdop
+    }
+
+    struct Timestamp {
+        UInt64 epochUs
+    }
+
+    typedef DtcCode is UInt32
+}
