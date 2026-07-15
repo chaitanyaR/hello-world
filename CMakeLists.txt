@@ -9,6 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(cmake/CompilerOptions.cmake)
+include(cmake/DocTargets.cmake)
 
 # --- External dependencies ---
 # GTest/GMock built from source (available on Ubuntu via libgtest-dev)
