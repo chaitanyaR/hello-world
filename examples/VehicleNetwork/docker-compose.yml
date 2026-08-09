@@ -1,0 +1,20 @@
+# docker-compose.yml – SOME/IP Vehicle Network Demo (single-container)
+#
+# All 5 ECU nodes run as parallel processes inside one container.
+# Communication uses 127.0.0.1 UDP loopback – no special networking needed.
+#
+# Usage:
+#   docker compose up --build          # build image and run the simulation
+#   docker compose run --rm net bash   # open a shell inside the container
+
+services:
+  net:
+    image: someip-vehicle:runtime
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: vehicle_network_demo
+    # launch_network.sh starts all 5 nodes and waits for them to finish
+    command: ["bash", "/usr/local/bin/launch_network.sh", "/usr/local/bin"]
+    # No port mapping: nodes talk over the container's internal loopback

@@ -1,0 +1,89 @@
+# docker-compose.multinode.yml – Multi-container SOME/IP simulation
+#
+# Each ECU runs in its own container on a dedicated Docker bridge network.
+# This is architecturally more realistic: every container gets a separate IP
+# address, mirroring the ECU-per-node isolation on a real in-vehicle network.
+#
+# Network topology:
+#   BCM      172.20.0.10:30501   Body Control Module
+#   ECM      172.20.0.11:30502   Engine Control Module
+#   ADAS     172.20.0.12:30503   ADAS Controller
+#   Gateway  172.20.0.13:30504   Ethernet Gateway
+#   IPC      172.20.0.14:30505   Instrument Panel Cluster
+#
+# TRANSPORT_PEER_HOSTS injects the peer IPs at runtime – no rebuild needed.
+# Order must match the node's peer port array (see each node's *_main.c).
+#
+# Usage:
+#   docker compose -f docker-compose.multinode.yml up --build
+#   docker compose -f docker-compose.multinode.yml logs -f
+
+networks:
+  vehicle_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+
+x-node: &node-defaults
+  image: someip-vehicle:runtime
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+    target: runtime
+  restart: "no"
+  networks:
+    - vehicle_net
+
+services:
+  bcm:
+    <<: *node-defaults
+    container_name: ecu_bcm
+    command: ["/usr/local/bin/bcm_node"]
+    environment:
+      # Peers for BCM: ECM, ADAS, Gateway, IPC (in the order bcm_main.c passes them)
+      - TRANSPORT_PEER_HOSTS=172.20.0.11,172.20.0.12,172.20.0.13,172.20.0.14
+    networks:
+      vehicle_net:
+        ipv4_address: 172.20.0.10
+
+  ecm:
+    <<: *node-defaults
+    container_name: ecu_ecm
+    command: ["/usr/local/bin/ecm_node"]
+    environment:
+      - TRANSPORT_PEER_HOSTS=172.20.0.10,172.20.0.12,172.20.0.13,172.20.0.14
+    networks:
+      vehicle_net:
+        ipv4_address: 172.20.0.11
+
+  adas:
+    <<: *node-defaults
+    container_name: ecu_adas
+    command: ["/usr/local/bin/adas_node"]
+    environment:
+      - TRANSPORT_PEER_HOSTS=172.20.0.10,172.20.0.11,172.20.0.13,172.20.0.14
+    networks:
+      vehicle_net:
+        ipv4_address: 172.20.0.12
+
+  gateway:
+    <<: *node-defaults
+    container_name: ecu_gateway
+    command: ["/usr/local/bin/gateway_node"]
+    environment:
+      - TRANSPORT_PEER_HOSTS=172.20.0.10,172.20.0.11,172.20.0.12,172.20.0.14
+    networks:
+      vehicle_net:
+        ipv4_address: 172.20.0.13
+
+  ipc:
+    <<: *node-defaults
+    container_name: ecu_ipc
+    command: ["/usr/local/bin/ipc_node"]
+    environment:
+      - TRANSPORT_PEER_HOSTS=172.20.0.10,172.20.0.11,172.20.0.12,172.20.0.13
+    networks:
+      vehicle_net:
+        ipv4_address: 172.20.0.14

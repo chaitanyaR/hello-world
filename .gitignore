@@ -30,3 +30,14 @@
 
 # Debug files
 *.dSYM/
+
+# CMake build output
+build/
+build_*/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+
+# Runtime-generated node simulation logs
+node_logs/
+*.log

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vehicle Network – SOVD Live Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --border:   #30363d;
+      --text:     #c9d1d9;
+      --muted:    #6e7681;
+      --green:    #3fb950;
+      --amber:    #d29922;
+      --red:      #f85149;
+      --blue:     #58a6ff;
+      --purple:   #bc8cff;
+      --cyan:     #39d353;
+      --accent:   #1f6feb;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .hdr-left h1 { font-size: 1rem; font-weight: 700; color: var(--blue); }
+    .hdr-left p  { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .hdr-right   { display: flex; align-items: center; gap: 16px; }
+
+    #conn-status {
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    #conn-status.ok   { background: rgba(63,185,80,0.15);  color: var(--green); }
+    #conn-status.err  { background: rgba(248,81,73,0.15);  color: var(--red);   }
+    #conn-status.init { background: rgba(88,166,255,0.15); color: var(--blue);  }
+
+    #cycle-counter { font-size: 0.75rem; color: var(--muted); }
+    #last-ts       { font-size: 0.75rem; color: var(--muted); }
+
+    /* ── Main layout ─────────────────────────────────────────────── */
+    main { padding: 20px 24px; }
+
+    /* ── Domain headers ──────────────────────────────────────────── */
+    .domain-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 20px 0 8px;
+      padding-left: 2px;
+    }
+
+    /* ── ECU card grid ───────────────────────────────────────────── */
+    .ecu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .card-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 9px;
+      border-radius: 10px;
+    }
+    .badge-ok     { background: rgba(63,185,80,0.15);  color: var(--green); }
+    .badge-warn   { background: rgba(210,153,34,0.15); color: var(--amber); }
+    .badge-fault  { background: rgba(248,81,73,0.15);  color: var(--red);   }
+    .badge-off    { background: rgba(110,118,129,0.2); color: var(--muted); }
+
+    /* ── Data element rows ───────────────────────────────────────── */
+    .elem-table { width: 100%; border-collapse: collapse; }
+
+    .elem-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+    .elem-table td {
+      padding: 7px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .elem-table td.label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      width: 42%;
+    }
+    .elem-table td.value-cell {
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .elem-table td.write-cell {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* Value color classes */
+    .v-ok       { color: var(--green);  }
+    .v-warn     { color: var(--amber);  }
+    .v-crit     { color: var(--red);    }
+    .v-neutral  { color: var(--text);   }
+    .v-off      { color: var(--muted);  }
+
+    .unit { font-size: 0.72rem; color: var(--muted); margin-left: 3px; font-weight: 400; }
+
+    /* ── Write controls ──────────────────────────────────────────── */
+    .write-wrap { display: inline-flex; align-items: center; gap: 5px; }
+
+    .write-wrap input {
+      width: 65px;
+      padding: 3px 6px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 0.78rem;
+      font-family: monospace;
+    }
+    .write-wrap input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn-write {
+      padding: 3px 10px;
+      background: var(--accent);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-write:hover  { background: #388bfd; }
+    .btn-write:active { background: #1158c7; }
+
+    /* ── Gauge bars for key signals ──────────────────────────────── */
+    .gauge-row td { padding-top: 4px; padding-bottom: 8px; }
+    .gauge-bar-wrap {
+      height: 4px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .gauge-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .fill-ok   { background: var(--green); }
+    .fill-warn { background: var(--amber); }
+    .fill-crit { background: var(--red);   }
+
+    /* ── Faults panel ────────────────────────────────────────────── */
+    #faults-section { margin-top: 24px; }
+    #faults-section h2 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .fault-count-badge {
+      display: inline-block;
+      background: rgba(248,81,73,0.2);
+      color: var(--red);
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 1px 8px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .fault-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 0.8rem;
+    }
+    .fault-table thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .fault-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
+    .fault-table tbody td {
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .dtc-code { color: var(--amber); font-family: monospace; font-weight: 700; }
+    .sev-imm  { color: var(--red);   font-weight: 600; }
+    .sev-halt { color: var(--amber); }
+    .sev-maint{ color: var(--muted); }
+
+    .btn-clear {
+      padding: 3px 10px;
+      background: rgba(248,81,73,0.12);
+      border: 1px solid rgba(248,81,73,0.3);
+      border-radius: 5px;
+      color: var(--red);
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-clear:hover { background: rgba(248,81,73,0.25); }
+
+    .no-faults {
+      text-align: center;
+      color: var(--green);
+      padding: 18px;
+      font-size: 0.82rem;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      padding: 16px 24px;
+      margin-top: 28px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ════════════════════════════════ -->
+<header>
+  <div class="hdr-left">
+    <h1>Vehicle Network – SOVD Live Dashboard</h1>
+    <p>ASAM SOVD 1.0 &nbsp;|&nbsp; AUTOSAR R22-11 &nbsp;|&nbsp; HPC Diagnostic Interface &nbsp;|&nbsp; ISO 14229-1 DTC</p>
+  </div>
+  <div class="hdr-right">
+    <span id="last-ts">–</span>
+    <span id="cycle-counter">Cycle 0</span>
+    <span id="conn-status" class="init">Connecting…</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ MAIN ══════════════════════════════════ -->
+<main>
+
+  <!-- HPC / ADAS Domain -->
+  <div class="domain-label">HPC Domain – Advanced Driver Assistance</div>
+  <div class="ecu-grid" id="grid-hpc"></div>
+
+  <!-- Powertrain Domain -->
+  <div class="domain-label">Powertrain Domain – Engine &amp; Transmission</div>
+  <div class="ecu-grid" id="grid-pt"></div>
+
+  <!-- Body &amp; Network Domain -->
+  <div class="domain-label">Body &amp; Network Domain</div>
+  <div class="ecu-grid" id="grid-body"></div>
+
+  <!-- Faults -->
+  <div id="faults-section">
+    <h2>Active Faults (DTCs) <span class="fault-count-badge" id="fault-total">–</span></h2>
+    <table class="fault-table">
+      <thead><tr>
+        <th>Component</th>
+        <th>DTC Code</th>
+        <th>Description</th>
+        <th>Status</th>
+        <th>Severity</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="fault-tbody"><tr><td colspan="6" class="no-faults">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  AUTOSAR SOME/IP Vehicle Network &nbsp;·&nbsp; SOVD HPC Node &nbsp;·&nbsp;
+  <a href="/sovd/v1/" style="color:var(--blue)">REST API</a> &nbsp;·&nbsp;
+  Cyclic poll interval: 1 000 ms
+</footer>
+
+<!-- ═══════════════════════════ SCRIPT ════════════════════════════════ -->
+<script>
+'use strict';
+
+const BASE = '/sovd/v1';
+let cycleCount = 0;
+let errorStreak = 0;
+
+/* Component descriptor: id, display label, target grid, gauge elements */
+const COMPONENTS = [
+  { id: 'adas',    label: 'ADAS – HPC Controller',     grid: 'grid-hpc',  domain: 'hpc' },
+  { id: 'ecm',     label: 'ECM – Engine Control',      grid: 'grid-pt',   domain: 'powertrain' },
+  { id: 'tcu',     label: 'TCU – Transmission',        grid: 'grid-pt',   domain: 'powertrain' },
+  { id: 'bcm',     label: 'BCM – Body Control',        grid: 'grid-body', domain: 'body' },
+  { id: 'gateway', label: 'Gateway – Cross-Domain',    grid: 'grid-body', domain: 'network' },
+];
+
+/* ── Colour logic ─────────────────────────────────────────────────── */
+function valueClass(id, val) {
+  const rules = {
+    engine_rpm:           v => v > 5500 ? 'v-crit' : v > 3500 ? 'v-warn' : v < 400 ? 'v-off' : 'v-ok',
+    coolant_temp_c:       v => v > 105  ? 'v-crit' : v > 95   ? 'v-warn' : v < 30   ? 'v-warn' : 'v-ok',
+    collision_warn_level: v => v >= 3   ? 'v-crit' : v >= 2   ? 'v-warn' : v >= 1   ? 'v-warn' : 'v-ok',
+    fuel_level_pct:       v => v < 8    ? 'v-crit' : v < 20   ? 'v-warn' : 'v-ok',
+    bus_load_pct:         v => v > 85   ? 'v-crit' : v > 65   ? 'v-warn' : 'v-ok',
+    trans_temp_c:         v => v > 115  ? 'v-crit' : v > 100  ? 'v-warn' : 'v-ok',
+    radar_distance_m:     v => v < 6    ? 'v-crit' : v < 12   ? 'v-warn' : 'v-ok',
+    map_kpa:              v => v > 90   ? 'v-warn' : 'v-ok',
+    lane_departure_active: v => v ? 'v-warn' : 'v-ok',
+    limp_home_active:     v => v ? 'v-crit' : 'v-ok',
+  };
+  return (rules[id] || (() => 'v-neutral'))(val);
+}
+
+/* ── Gauge bar logic ──────────────────────────────────────────────── */
+const GAUGE_DEFS = {
+  engine_rpm:       { max: 7000,  fill: v => v > 5500 ? 'fill-crit' : v > 3500 ? 'fill-warn' : 'fill-ok' },
+  coolant_temp_c:   { max: 130,   fill: v => v > 105  ? 'fill-crit' : v > 95   ? 'fill-warn' : 'fill-ok' },
+  fuel_level_pct:   { max: 100,   fill: v => v < 8    ? 'fill-crit' : v < 20   ? 'fill-warn' : 'fill-ok' },
+  radar_distance_m: { max: 50,    fill: v => v < 6    ? 'fill-crit' : v < 12   ? 'fill-warn' : 'fill-ok' },
+  bus_load_pct:     { max: 100,   fill: v => v > 85   ? 'fill-crit' : v > 65   ? 'fill-warn' : 'fill-ok' },
+  trans_temp_c:     { max: 140,   fill: v => v > 115  ? 'fill-crit' : v > 100  ? 'fill-warn' : 'fill-ok' },
+  fusion_confidence_pct: { max: 100, fill: () => 'fill-ok' },
+  throttle_pos_pct: { max: 100,   fill: () => 'fill-ok' },
+};
+
+/* ── Value formatting ─────────────────────────────────────────────── */
+function fmtVal(elem) {
+  const v = elem.value;
+  if (elem.dataType === 'boolean') {
+    const label = (elem.id.includes('locked')) ? (v ? 'LOCKED' : 'OPEN') :
+                  (elem.id === 'engine_running') ? (v ? 'RUNNING' : 'STOPPED') :
+                  (elem.id === 'routing_active') ? (v ? 'ACTIVE' : 'INACTIVE') :
+                  (elem.id === 'camera_online')  ? (v ? 'ONLINE' : 'OFFLINE') :
+                  (elem.id.includes('active') || elem.id.includes('on')) ? (v ? 'ON' : 'OFF') :
+                  (v ? 'TRUE' : 'FALSE');
+    return label;
+  }
+  if (elem.dataType === 'float32') return parseFloat(v).toFixed(1);
+  if (elem.valueString)           return `${v} (${elem.valueString})`;
+  return String(v);
+}
+
+/* ── Build static card shells ─────────────────────────────────────── */
+function buildCards() {
+  COMPONENTS.forEach(comp => {
+    const grid = document.getElementById(comp.grid);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = `card-${comp.id}`;
+    card.innerHTML =
+      `<div class="card-hdr">
+         <span class="card-title">${comp.label}</span>
+         <span class="badge badge-off" id="badge-${comp.id}">–</span>
+       </div>
+       <table class="elem-table" id="tbl-${comp.id}"><tbody></tbody></table>`;
+    grid.appendChild(card);
+  });
+}
+
+/* ── Render a component's data elements ──────────────────────────── */
+function renderElements(compId, elems) {
+  const tbody = document.querySelector(`#tbl-${compId} tbody`);
+  /* Preserve which input fields have focus / unsaved text */
+  const saved = {};
+  tbody.querySelectorAll('input').forEach(inp => {
+    if (document.activeElement === inp) saved[inp.id] = inp.value;
+  });
+
+  const rows = elems.map(el => {
+    const vcls  = valueClass(el.id, el.value);
+    const fval  = fmtVal(el);
+    const unitS = el.unit ? `<span class="unit">${el.unit}</span>` : '';
+    const gdef  = GAUGE_DEFS[el.id];
+    const gaugeHtml = gdef
+      ? `<div class="gauge-bar-wrap">
+           <div class="gauge-bar-fill ${gdef.fill(el.value)}"
+                id="gf-${compId}-${el.id}"
+                style="width:${Math.min(100, Math.max(0, (el.value / gdef.max) * 100)).toFixed(1)}%">
+           </div></div>`
+      : '';
+
+    if (el.access === 'read-write') {
+      const inpId = `inp-${compId}-${el.id}`;
+      const savedVal = saved[inpId] !== undefined ? saved[inpId] : '';
+      return `<tr>
+        <td class="label">${el.name}</td>
+        <td class="value-cell ${vcls}" id="val-${compId}-${el.id}">${fval}${unitS}${gaugeHtml}</td>
+        <td class="write-cell">
+          <div class="write-wrap">
+            <input type="number" id="${inpId}" placeholder="${typeof el.value === 'number' ? el.value : ''}"
+                   value="${savedVal}" data-comp="${compId}" data-id="${el.id}">
+            <button class="btn-write" onclick="doWrite('${compId}','${el.id}')">Set</button>
+          </div>
+        </td>
+      </tr>`;
+    }
+
+    return `<tr>
+      <td class="label">${el.name}</td>
+      <td class="value-cell ${vcls}" colspan="2" id="val-${compId}-${el.id}">${fval}${unitS}${gaugeHtml}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join('');
+}
+
+/* ── Cyclic data refresh ──────────────────────────────────────────── */
+async function refreshComp(comp) {
+  const badge = document.getElementById(`badge-${comp.id}`);
+  try {
+    const r = await fetch(`${BASE}/components/${comp.id}/data-elements`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data  = await r.json();
+    const elems = data['data-elements'] || [];
+
+    renderElements(comp.id, elems);
+
+    /* Update badge from data */
+    const hasCrit = elems.some(e => valueClass(e.id, e.value) === 'v-crit');
+    const hasWarn = elems.some(e => valueClass(e.id, e.value) === 'v-warn');
+    badge.textContent = hasCrit ? 'FAULT' : hasWarn ? 'CAUTION' : 'ONLINE';
+    badge.className   = 'badge ' + (hasCrit ? 'badge-fault' : hasWarn ? 'badge-warn' : 'badge-ok');
+    errorStreak = 0;
+  } catch (err) {
+    badge.textContent = 'OFFLINE';
+    badge.className   = 'badge badge-fault';
+    errorStreak++;
+  }
+}
+
+/* ── Fault refresh ────────────────────────────────────────────────── */
+async function refreshFaults() {
+  const tbody  = document.getElementById('fault-tbody');
+  const total  = document.getElementById('fault-total');
+  let   rows   = '';
+  let   count  = 0;
+
+  for (const comp of COMPONENTS) {
+    try {
+      const r = await fetch(`${BASE}/components/${comp.id}/faults`);
+      const d = await r.json();
+      (d.faults || []).forEach(f => {
+        const sevCls =
+          f.severity === 'check-immediately' ? 'sev-imm'  :
+          f.severity === 'check-next-halt'   ? 'sev-halt' : 'sev-maint';
+        rows += `<tr>
+          <td>${comp.label}</td>
+          <td class="dtc-code">${f.dtcCode}</td>
+          <td>${f.description}</td>
+          <td>${f.status}</td>
+          <td class="${sevCls}">${f.severity}</td>
+          <td><button class="btn-clear" onclick="doClear('${comp.id}')">Clear</button></td>
+        </tr>`;
+        count++;
+      });
+    } catch (_) { /* component offline */ }
+  }
+
+  tbody.innerHTML = count
+    ? rows
+    : '<tr><td colspan="6" class="no-faults">✓ No active faults detected</td></tr>';
+  total.textContent = count || '0';
+}
+
+async function refreshAll() {
+  cycleCount++;
+  document.getElementById('cycle-counter').textContent = `Cycle ${cycleCount}`;
+  document.getElementById('last-ts').textContent = new Date().toLocaleTimeString();
+
+  await Promise.all(COMPONENTS.map(refreshComp));
+  await refreshFaults();
+
+  const status = document.getElementById('conn-status');
+  if (errorStreak >= COMPONENTS.length) {
+    status.textContent = 'No connection';
+    status.className   = 'err';
+  } else {
+    status.textContent = 'Live';
+    status.className   = 'ok';
+  }
+}
+
+/* ── Write a single element ───────────────────────────────────────── */
+async function doWrite(compId, elemId) {
+  const inp = document.getElementById(`inp-${compId}-${elemId}`);
+  if (!inp || inp.value === '') return;
+
+  const val = parseFloat(inp.value);
+  if (isNaN(val)) { inp.style.borderColor = 'var(--red)'; return; }
+  inp.style.borderColor = '';
+
+  try {
+    const r = await fetch(`${BASE}/components/${compId}/data-elements/${elemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: val }),
+    });
+    if (!r.ok) {
+      inp.style.borderColor = 'var(--red)';
+    } else {
+      inp.value = '';
+      /* Immediate visual refresh */
+      await refreshComp(COMPONENTS.find(c => c.id === compId));
+    }
+  } catch (e) {
+    inp.style.borderColor = 'var(--red)';
+  }
+}
+
+/* ── Clear faults for a component ────────────────────────────────── */
+async function doClear(compId) {
+  await fetch(`${BASE}/components/${compId}/faults`, { method: 'DELETE' });
+  await refreshFaults();
+}
+
+/* ── Bootstrap ────────────────────────────────────────────────────── */
+buildCards();
+refreshAll();
+setInterval(refreshAll, 1000);   /* 1 s cyclic polling */
+</script>
+</body>
+</html>
