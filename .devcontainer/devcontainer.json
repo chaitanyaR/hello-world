@@ -1,0 +1,40 @@
+{
+    "name": "AUTOSAR SOME/IP SDK",
+
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": "..",
+        "target": "sdk"
+    },
+
+    // Mount the repo into /workspace so edits persist on the host
+    "workspaceFolder": "/workspace",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+
+    // Expose SOMEIP_ROOT so CMake Tools picks it up automatically
+    "remoteEnv": {
+        "SOMEIP_ROOT": "/opt/someip-sdk/someip"
+    },
+
+    "postCreateCommand": "echo 'Dev container ready — SOMEIP_ROOT=${SOMEIP_ROOT}'",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.makefile-tools",
+                "llvm-vs-code-extensions.vscode-clangd"
+            ],
+            "settings": {
+                "cmake.configureArgs": [
+                    "-DSOMEIP_ROOT=${env:SOMEIP_ROOT}"
+                ],
+                "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+            }
+        }
+    }
+}

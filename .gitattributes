@@ -1,0 +1,29 @@
+# Force LF line endings for all shell scripts and text files.
+# This prevents Docker Desktop on Windows from converting \n → \r\n
+# when git checks out files, which breaks bash scripts inside Linux containers.
+
+* text=auto
+
+*.sh        text eol=lf
+*.bash      text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.cmake     text eol=lf
+CMakeLists.txt text eol=lf
+*.md        text eol=lf
+*.c         text eol=lf
+*.h         text eol=lf
+*.cpp       text eol=lf
+*.json      text eol=lf
+
+# Binaries — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.a   binary
+*.so  binary
+*.dll binary
+*.exe binary

@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BulkDataTransfer_SWC.arxml
+  AUTOSAR Software Component Description
+  AUTOSAR Release R22-11  |  Schema: AUTOSAR_4-8-0.xsd
+
+  Describes:
+    1. Application Data Types   – BulkDataBufferType (uint8[256])
+    2. Port Interface           – SRIf_BulkData  (SenderReceiverInterface)
+    3. Software Component       – BulkDataTransfer (ApplicationSwComponentType)
+         R-Port: RPort_BulkDataIn   (receives bulk sensor data)
+         P-Port: PPort_BulkDataOut  (provides processed data)
+    4. Internal Behavior        – 10 ms TimingEvent → BulkDataTransfer_10msRunnable
+         Explicit Read  via DATA-RECEIVE-POINT-BY-ARGUMENTS
+         Explicit Write via DATA-SEND-POINTS
+-->
+<AUTOSAR
+    xmlns="http://autosar.org/schema/r4.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://autosar.org/schema/r4.0 AUTOSAR_4-8-0.xsd">
+
+  <AR-PACKAGES>
+
+    <!-- ===================================================================
+         Package: DataTypes
+         Application data type for a 256-byte bulk data buffer.
+         =================================================================== -->
+    <AR-PACKAGE>
+      <SHORT-NAME>DataTypes</SHORT-NAME>
+
+      <ELEMENTS>
+
+        <!-- uint8 implementation type (normally from AUTOSAR Platform package) -->
+        <IMPLEMENTATION-DATA-TYPE>
+          <SHORT-NAME>uint8</SHORT-NAME>
+          <CATEGORY>VALUE</CATEGORY>
+          <SW-DATA-DEF-PROPS>
+            <SW-DATA-DEF-PROPS-VARIANTS>
+              <SW-DATA-DEF-PROPS-CONDITIONAL>
+                <BASE-TYPE-REF DEST="SW-BASE-TYPE">/DataTypes/BaseTypes/uint8</BASE-TYPE-REF>
+              </SW-DATA-DEF-PROPS-CONDITIONAL>
+            </SW-DATA-DEF-PROPS-VARIANTS>
+          </SW-DATA-DEF-PROPS>
+        </IMPLEMENTATION-DATA-TYPE>
+
+        <!-- BulkDataBufferType: fixed-size array of 256 × uint8 -->
+        <ARRAY-IMPLEMENTATION-DATA-TYPE>
+          <SHORT-NAME>BulkDataBufferType</SHORT-NAME>
+          <CATEGORY>ARRAY</CATEGORY>
+          <SW-DATA-DEF-PROPS>
+            <SW-DATA-DEF-PROPS-VARIANTS>
+              <SW-DATA-DEF-PROPS-CONDITIONAL>
+                <!-- No base-type at array level; element defines it -->
+              </SW-DATA-DEF-PROPS-CONDITIONAL>
+            </SW-DATA-DEF-PROPS-VARIANTS>
+          </SW-DATA-DEF-PROPS>
+          <ELEMENT>
+            <SHORT-NAME>Element</SHORT-NAME>
+            <CATEGORY>VALUE</CATEGORY>
+            <ARRAY-SIZE>256</ARRAY-SIZE>
+            <ARRAY-SIZE-SEMANTICS>FIXED-SIZE</ARRAY-SIZE-SEMANTICS>
+            <SW-DATA-DEF-PROPS>
+              <SW-DATA-DEF-PROPS-VARIANTS>
+                <SW-DATA-DEF-PROPS-CONDITIONAL>
+                  <BASE-TYPE-REF DEST="SW-BASE-TYPE">/DataTypes/BaseTypes/uint8</BASE-TYPE-REF>
+                </SW-DATA-DEF-PROPS-CONDITIONAL>
+              </SW-DATA-DEF-PROPS-VARIANTS>
+            </SW-DATA-DEF-PROPS>
+          </ELEMENT>
+        </ARRAY-IMPLEMENTATION-DATA-TYPE>
+
+        <!-- Checksum type for data integrity field -->
+        <IMPLEMENTATION-DATA-TYPE>
+          <SHORT-NAME>BulkDataChecksumType</SHORT-NAME>
+          <CATEGORY>VALUE</CATEGORY>
+          <SW-DATA-DEF-PROPS>
+            <SW-DATA-DEF-PROPS-VARIANTS>
+              <SW-DATA-DEF-PROPS-CONDITIONAL>
+                <BASE-TYPE-REF DEST="SW-BASE-TYPE">/DataTypes/BaseTypes/uint32</BASE-TYPE-REF>
+              </SW-DATA-DEF-PROPS-CONDITIONAL>
+            </SW-DATA-DEF-PROPS-VARIANTS>
+          </SW-DATA-DEF-PROPS>
+        </IMPLEMENTATION-DATA-TYPE>
+
+        <!-- Base types sub-package -->
+        <AR-PACKAGE>
+          <SHORT-NAME>BaseTypes</SHORT-NAME>
+          <ELEMENTS>
+            <SW-BASE-TYPE>
+              <SHORT-NAME>uint8</SHORT-NAME>
+              <CATEGORY>FIXED_LENGTH</CATEGORY>
+              <BASE-TYPE-SIZE>8</BASE-TYPE-SIZE>
+              <BASE-TYPE-ENCODING>2C</BASE-TYPE-ENCODING>
+            </SW-BASE-TYPE>
+            <SW-BASE-TYPE>
+              <SHORT-NAME>uint16</SHORT-NAME>
+              <CATEGORY>FIXED_LENGTH</CATEGORY>
+              <BASE-TYPE-SIZE>16</BASE-TYPE-SIZE>
+              <BASE-TYPE-ENCODING>2C</BASE-TYPE-ENCODING>
+            </SW-BASE-TYPE>
+            <SW-BASE-TYPE>
+              <SHORT-NAME>uint32</SHORT-NAME>
+              <CATEGORY>FIXED_LENGTH</CATEGORY>
+              <BASE-TYPE-SIZE>32</BASE-TYPE-SIZE>
+              <BASE-TYPE-ENCODING>2C</BASE-TYPE-ENCODING>
+            </SW-BASE-TYPE>
+          </ELEMENTS>
+        </AR-PACKAGE>
+
+      </ELEMENTS>
+    </AR-PACKAGE>
+
+    <!-- ===================================================================
+         Package: Interfaces
+         SenderReceiverInterface carrying the bulk data buffer.
+         =================================================================== -->
+    <AR-PACKAGE>
+      <SHORT-NAME>Interfaces</SHORT-NAME>
+
+      <ELEMENTS>
+
+        <!--
+          SRIf_BulkData
+          Two data elements:
+            BulkBuffer  – the 256-byte payload
+            Checksum    – CRC-32 of the payload (written by sender)
+        -->
+        <SENDER-RECEIVER-INTERFACE>
+          <SHORT-NAME>SRIf_BulkData</SHORT-NAME>
+          <IS-SERVICE>false</IS-SERVICE>
+
+          <DATA-ELEMENTS>
+
+            <!-- Primary bulk payload -->
+            <VARIABLE-DATA-PROTOTYPE>
+              <SHORT-NAME>BulkBuffer</SHORT-NAME>
+              <CATEGORY>VALUE</CATEGORY>
+              <SW-DATA-DEF-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <IMPLEMENTATION-DATA-TYPE-REF DEST="ARRAY-IMPLEMENTATION-DATA-TYPE">
+                      /DataTypes/BulkDataBufferType
+                    </IMPLEMENTATION-DATA-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </SW-DATA-DEF-PROPS>
+              <!-- Init value: all bytes 0x00 -->
+              <INIT-VALUE>
+                <NUMERICAL-VALUE-SPECIFICATION>
+                  <VALUE>0</VALUE>
+                </NUMERICAL-VALUE-SPECIFICATION>
+              </INIT-VALUE>
+            </VARIABLE-DATA-PROTOTYPE>
+
+            <!-- Integrity checksum -->
+            <VARIABLE-DATA-PROTOTYPE>
+              <SHORT-NAME>Checksum</SHORT-NAME>
+              <CATEGORY>VALUE</CATEGORY>
+              <SW-DATA-DEF-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <IMPLEMENTATION-DATA-TYPE-REF DEST="IMPLEMENTATION-DATA-TYPE">
+                      /DataTypes/BulkDataChecksumType
+                    </IMPLEMENTATION-DATA-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </SW-DATA-DEF-PROPS>
+              <INIT-VALUE>
+                <NUMERICAL-VALUE-SPECIFICATION>
+                  <VALUE>0</VALUE>
+                </NUMERICAL-VALUE-SPECIFICATION>
+              </INIT-VALUE>
+            </VARIABLE-DATA-PROTOTYPE>
+
+          </DATA-ELEMENTS>
+        </SENDER-RECEIVER-INTERFACE>
+
+      </ELEMENTS>
+    </AR-PACKAGE>
+
+    <!-- ===================================================================
+         Package: Components
+         ApplicationSwComponentType: BulkDataTransfer
+         =================================================================== -->
+    <AR-PACKAGE>
+      <SHORT-NAME>Components</SHORT-NAME>
+
+      <ELEMENTS>
+
+        <APPLICATION-SW-COMPONENT-TYPE>
+          <SHORT-NAME>BulkDataTransfer</SHORT-NAME>
+          <ADMIN-DATA>
+            <SDGS>
+              <SDG GID="DV:CDF">
+                <SD GID="DV:category">AUTOSAR SWC – Bulk Data Transfer</SD>
+                <SD GID="DV:version">1.0.0</SD>
+              </SDG>
+            </SDGS>
+          </ADMIN-DATA>
+
+          <!-- ----- Ports ------------------------------------------------ -->
+          <PORTS>
+
+            <!--
+              R-Port: RPort_BulkDataIn
+              Receives bulk sensor data from a data producer SWC.
+              Explicit read: Rte_Read_RPort_BulkDataIn_BulkBuffer()
+                             Rte_Read_RPort_BulkDataIn_Checksum()
+            -->
+            <R-PORT-PROTOTYPE>
+              <SHORT-NAME>RPort_BulkDataIn</SHORT-NAME>
+              <REQUIRED-INTERFACE-TREF DEST="SENDER-RECEIVER-INTERFACE">
+                /Interfaces/SRIf_BulkData
+              </REQUIRED-INTERFACE-TREF>
+              <REQUIRED-COM-SPECS>
+                <NONQUEUED-RECEIVER-COM-SPEC>
+                  <DATA-ELEMENT-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                    /Interfaces/SRIf_BulkData/BulkBuffer
+                  </DATA-ELEMENT-REF>
+                  <ALIVE-TIMEOUT>0.1</ALIVE-TIMEOUT>        <!-- 100 ms supervision -->
+                  <DATA-FILTER>
+                    <FILTER-MECHANISM>NEVER</FILTER-MECHANISM>
+                  </DATA-FILTER>
+                </NONQUEUED-RECEIVER-COM-SPEC>
+                <NONQUEUED-RECEIVER-COM-SPEC>
+                  <DATA-ELEMENT-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                    /Interfaces/SRIf_BulkData/Checksum
+                  </DATA-ELEMENT-REF>
+                  <ALIVE-TIMEOUT>0.1</ALIVE-TIMEOUT>
+                </NONQUEUED-RECEIVER-COM-SPEC>
+              </REQUIRED-COM-SPECS>
+            </R-PORT-PROTOTYPE>
+
+            <!--
+              P-Port: PPort_BulkDataOut
+              Provides processed bulk data to downstream consumers.
+              Explicit write: Rte_Write_PPort_BulkDataOut_BulkBuffer()
+                              Rte_Write_PPort_BulkDataOut_Checksum()
+            -->
+            <P-PORT-PROTOTYPE>
+              <SHORT-NAME>PPort_BulkDataOut</SHORT-NAME>
+              <PROVIDED-INTERFACE-TREF DEST="SENDER-RECEIVER-INTERFACE">
+                /Interfaces/SRIf_BulkData
+              </PROVIDED-INTERFACE-TREF>
+              <PROVIDED-COM-SPECS>
+                <NONQUEUED-SENDER-COM-SPEC>
+                  <DATA-ELEMENT-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                    /Interfaces/SRIf_BulkData/BulkBuffer
+                  </DATA-ELEMENT-REF>
+                  <INIT-VALUE>
+                    <NUMERICAL-VALUE-SPECIFICATION>
+                      <VALUE>0</VALUE>
+                    </NUMERICAL-VALUE-SPECIFICATION>
+                  </INIT-VALUE>
+                </NONQUEUED-SENDER-COM-SPEC>
+                <NONQUEUED-SENDER-COM-SPEC>
+                  <DATA-ELEMENT-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                    /Interfaces/SRIf_BulkData/Checksum
+                  </DATA-ELEMENT-REF>
+                  <INIT-VALUE>
+                    <NUMERICAL-VALUE-SPECIFICATION>
+                      <VALUE>0</VALUE>
+                    </NUMERICAL-VALUE-SPECIFICATION>
+                  </INIT-VALUE>
+                </NONQUEUED-SENDER-COM-SPEC>
+              </PROVIDED-COM-SPECS>
+            </P-PORT-PROTOTYPE>
+
+          </PORTS>
+
+          <!-- ----- Internal Behavior ------------------------------------- -->
+          <INTERNAL-BEHAVIORS>
+            <SWC-INTERNAL-BEHAVIOR>
+              <SHORT-NAME>BulkDataTransfer_Behavior</SHORT-NAME>
+
+              <!-- No exclusive areas needed; single runnable, no shared state -->
+              <SUPPORTS-MULTIPLE-INSTANTIATION>false</SUPPORTS-MULTIPLE-INSTANTIATION>
+
+              <!-- ----- Runnables ---------------------------------------- -->
+              <RUNNABLES>
+
+                <!--
+                  BulkDataTransfer_Init1Runnable
+                  Triggered once at ECU startup (INIT event).
+                  Initialises output buffer to known state.
+                -->
+                <RUNNABLE-ENTITY>
+                  <SHORT-NAME>BulkDataTransfer_Init1Runnable</SHORT-NAME>
+                  <MINIMUM-START-INTERVAL>0</MINIMUM-START-INTERVAL>
+                  <CAN-BE-INVOKED-CONCURRENTLY>false</CAN-BE-INVOKED-CONCURRENTLY>
+                  <DATA-SEND-POINTS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>WriteInit_BulkDataOut_Buffer</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="P-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/PPort_BulkDataOut
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/BulkBuffer
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>WriteInit_BulkDataOut_Checksum</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="P-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/PPort_BulkDataOut
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/Checksum
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                  </DATA-SEND-POINTS>
+                </RUNNABLE-ENTITY>
+
+                <!--
+                  BulkDataTransfer_10msRunnable
+                  Triggered every 10 ms by TimingEvent_10ms.
+                  Explicit read from RPort_BulkDataIn, process, explicit write
+                  to PPort_BulkDataOut.
+                -->
+                <RUNNABLE-ENTITY>
+                  <SHORT-NAME>BulkDataTransfer_10msRunnable</SHORT-NAME>
+                  <MINIMUM-START-INTERVAL>0</MINIMUM-START-INTERVAL>
+                  <CAN-BE-INVOKED-CONCURRENTLY>false</CAN-BE-INVOKED-CONCURRENTLY>
+
+                  <!-- Explicit read access points (DATA-RECEIVE-POINT-BY-ARGUMENTS) -->
+                  <DATA-RECEIVE-POINT-BY-ARGUMENTS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>Read_BulkDataIn_Buffer</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="R-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/RPort_BulkDataIn
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/BulkBuffer
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>Read_BulkDataIn_Checksum</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="R-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/RPort_BulkDataIn
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/Checksum
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                  </DATA-RECEIVE-POINT-BY-ARGUMENTS>
+
+                  <!-- Explicit write access points (DATA-SEND-POINTS) -->
+                  <DATA-SEND-POINTS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>Write_BulkDataOut_Buffer</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="P-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/PPort_BulkDataOut
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/BulkBuffer
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                    <VARIABLE-ACCESS>
+                      <SHORT-NAME>Write_BulkDataOut_Checksum</SHORT-NAME>
+                      <ACCESSED-VARIABLE>
+                        <AUTOSAR-VARIABLE-IREF>
+                          <PORT-PROTOTYPE-REF DEST="P-PORT-PROTOTYPE">
+                            /Components/BulkDataTransfer/PPort_BulkDataOut
+                          </PORT-PROTOTYPE-REF>
+                          <TARGET-DATA-PROTOTYPE-REF DEST="VARIABLE-DATA-PROTOTYPE">
+                            /Interfaces/SRIf_BulkData/Checksum
+                          </TARGET-DATA-PROTOTYPE-REF>
+                        </AUTOSAR-VARIABLE-IREF>
+                      </ACCESSED-VARIABLE>
+                    </VARIABLE-ACCESS>
+                  </DATA-SEND-POINTS>
+
+                </RUNNABLE-ENTITY>
+
+              </RUNNABLES>
+
+              <!-- ----- Events ------------------------------------------- -->
+              <EVENTS>
+
+                <!-- Init event – triggers BulkDataTransfer_Init1Runnable once -->
+                <INIT-EVENT>
+                  <SHORT-NAME>InitEvent_Init1</SHORT-NAME>
+                  <START-ON-EVENT-REF DEST="RUNNABLE-ENTITY">
+                    /Components/BulkDataTransfer/BulkDataTransfer_Behavior/BulkDataTransfer_Init1Runnable
+                  </START-ON-EVENT-REF>
+                </INIT-EVENT>
+
+                <!-- 10 ms TimingEvent – triggers the cyclic runnable -->
+                <TIMING-EVENT>
+                  <SHORT-NAME>TimingEvent_10ms</SHORT-NAME>
+                  <START-ON-EVENT-REF DEST="RUNNABLE-ENTITY">
+                    /Components/BulkDataTransfer/BulkDataTransfer_Behavior/BulkDataTransfer_10msRunnable
+                  </START-ON-EVENT-REF>
+                  <!-- Period in seconds: 0.01 = 10 ms -->
+                  <PERIOD>0.01</PERIOD>
+                </TIMING-EVENT>
+
+              </EVENTS>
+
+              <!-- ----- Port API options ---------------------------------- -->
+              <PORT-API-OPTIONS>
+                <PORT-API-OPTION>
+                  <PORT-REF DEST="R-PORT-PROTOTYPE">
+                    /Components/BulkDataTransfer/RPort_BulkDataIn
+                  </PORT-REF>
+                  <!-- Explicit API (no implicit RTE buffer copy) -->
+                  <ENABLE-TAKE-ADDRESS>false</ENABLE-TAKE-ADDRESS>
+                  <INDIRECT-API>false</INDIRECT-API>
+                </PORT-API-OPTION>
+                <PORT-API-OPTION>
+                  <PORT-REF DEST="P-PORT-PROTOTYPE">
+                    /Components/BulkDataTransfer/PPort_BulkDataOut
+                  </PORT-REF>
+                  <ENABLE-TAKE-ADDRESS>false</ENABLE-TAKE-ADDRESS>
+                  <INDIRECT-API>false</INDIRECT-API>
+                </PORT-API-OPTION>
+              </PORT-API-OPTIONS>
+
+            </SWC-INTERNAL-BEHAVIOR>
+          </INTERNAL-BEHAVIORS>
+
+        </APPLICATION-SW-COMPONENT-TYPE>
+
+      </ELEMENTS>
+    </AR-PACKAGE>
+
+  </AR-PACKAGES>
+</AUTOSAR>
